@@ -44,7 +44,7 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "const data = pm.response.json();",
+                  "var data = pm.response.json();",
                   "if (data?.data?.accessToken) { pm.collectionVariables.set('accessToken', data.data.accessToken); }"
                 ]
               }
@@ -267,7 +267,7 @@
           "listen": "test",
           "script": {
             "exec": [
-              "const data = pm.response.json();",
+              "var data = pm.response.json();",
               "if (data?.data?._id) { pm.collectionVariables.set('applicationId', data.data._id); }"
             ]
           }
@@ -346,7 +346,7 @@
           "listen": "test",
           "script": {
             "exec": [
-              "const data = pm.response.json();",
+              "var data = pm.response.json();",
               "if (data?.data?._id) { pm.collectionVariables.set('conversationId', data.data._id); }"
             ]
           }
@@ -394,7 +394,7 @@
           "listen": "test",
           "script": {
             "exec": [
-              "const data = pm.response.json();",
+              "var data = pm.response.json();",
               "if (data?.data?._id) { pm.collectionVariables.set('bookingId', data.data._id); }"
             ]
           }
@@ -473,7 +473,7 @@
           "listen": "test",
           "script": {
             "exec": [
-              "const data = pm.response.json();",
+              "var data = pm.response.json();",
               "if (data?.data?.razorpayOrder?.id) { pm.collectionVariables.set('razorpayOrderId', data.data.razorpayOrder.id); }"
             ]
           }
@@ -593,7 +593,7 @@
           "listen": "test",
           "script": {
             "exec": [
-              "const data = pm.response.json();",
+              "var data = pm.response.json();",
               "if (data?.data?.accessToken) { pm.collectionVariables.set('accessToken', data.data.accessToken); }"
             ]
           }
@@ -789,7 +789,7 @@
           "listen": "test",
           "script": {
             "exec": [
-              "const data = pm.response.json();",
+              "var data = pm.response.json();",
               "if (data?.data?._id) { pm.collectionVariables.set('requirementId', data.data._id); }"
             ]
           }

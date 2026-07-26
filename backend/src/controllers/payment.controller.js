@@ -1,14 +1,14 @@
-import crypto from 'crypto';
-import razorpay from '../config/razorpay.js';
-import { env } from '../config/env.js';
-import Payment from '../models/Payment.js';
-import Booking from '../models/Booking.js';
-import PresenterProfile from '../models/PresenterProfile.js';
-import CollegeProfile from '../models/CollegeProfile.js';
-import ApiError from '../utils/ApiError.js';
-import ApiResponse from '../utils/ApiResponse.js';
-import { assertBookingParticipant } from '../services/payment.service.js';
-import { createNotification } from '../services/notification.service.js';
+import crypto from "crypto";
+import razorpay from "../config/razorpay.js";
+import { env } from "../config/env.js";
+import Payment from "../models/Payment.js";
+import Booking from "../models/Booking.js";
+import PresenterProfile from "../models/PresenterProfile.js";
+import CollegeProfile from "../models/CollegeProfile.js";
+import ApiError from "../utils/ApiError.js";
+import ApiResponse from "../utils/ApiResponse.js";
+import { assertBookingParticipant } from "../services/payment.service.js";
+import { createNotification } from "../services/notification.service.js";
 
 const wrapRazorpayError = (error, fallbackMessage) => {
   if (error?.error?.description) {
@@ -25,42 +25,46 @@ export const createOrder = async (req, res, next) => {
     const { bookingId } = req.body;
 
     const collegeProfile = await CollegeProfile.findOne({ user: req.user._id });
-    if (!collegeProfile) return next(new ApiError(404, 'College profile not found'));
+    if (!collegeProfile) return next(new ApiError(404, "College profile not found"));
 
     const booking = await Booking.findById(bookingId);
-    if (!booking) return next(new ApiError(404, 'Booking not found'));
+    if (!booking) return next(new ApiError(404, "Booking not found"));
 
     if (booking.college.toString() !== collegeProfile._id.toString()) {
-      return next(new ApiError(403, 'You do not own this booking'));
+      return next(new ApiError(403, "You do not own this booking"));
     }
-    if (booking.status !== 'pending_payment') {
-      return next(
-        new ApiError(400, `Booking is not awaiting payment (status: "${booking.status}")`)
-      );
+    if (booking.status !== "pending_payment") {
+      return next(new ApiError(400, `Booking is not awaiting payment (status: "${booking.status}")`));
     }
 
-    const existing = await Payment.findOne({
-      booking: booking._id,
-      status: { $in: ['created', 'paid'] },
-    });
+    const existing = await Payment.findOne({ booking: booking._id, status: { $in: ["created", "paid"] } });
     if (existing) {
-      return res.status(200).json(new ApiResponse(200, existing, 'Existing order returned'));
+      // NOTE: shape kept identical to the fresh-order response below —
+      // { payment, razorpayOrder?, razorpayKeyId } — so callers can rely on
+      // res.data.payment._id existing regardless of whether this is a new
+      // order or a repeat call. razorpayOrder isn't re-fetched from Razorpay
+      // here (we don't have a clean "get order" call wired up), so it's
+      // omitted rather than faked; the frontend's Pay Now flow only needs
+      // razorpayKeyId + the payment's own amount to reopen checkout.
+      return res.status(200).json(
+        new ApiResponse(200, { payment: existing, razorpayKeyId: env.razorpay.keyId }, "Existing order returned")
+      );
     }
 
     let order;
     try {
       order = await razorpay.orders.create({
         amount: Math.round(booking.totalChargeAmount * 100),
-        currency: 'INR',
+        currency: "INR",
         receipt: `booking_${booking._id}`,
         notes: { bookingId: booking._id.toString() },
       });
     } catch (razorpayError) {
-      console.error('[razorpay] Order creation failed:', JSON.stringify(razorpayError, null, 2));
+      console.error("[razorpay] Order creation failed:", JSON.stringify(razorpayError, null, 2));
       return next(
         wrapRazorpayError(
           razorpayError,
-          'Failed to create payment order. Check that RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in the backend .env are valid test-mode keys.'
+          "Failed to create payment order. Check that RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in the backend .env are valid test-mode keys."
         )
       );
     }
@@ -74,15 +78,11 @@ export const createOrder = async (req, res, next) => {
     });
 
     return res.status(201).json(
-      new ApiResponse(
-        201,
-        {
-          payment,
-          razorpayOrder: order,
-          razorpayKeyId: env.razorpay.keyId,
-        },
-        'Razorpay order created'
-      )
+      new ApiResponse(201, {
+        payment,
+        razorpayOrder: order,
+        razorpayKeyId: env.razorpay.keyId,
+      }, "Razorpay order created")
     );
   } catch (error) {
     next(error);
@@ -94,41 +94,41 @@ export const verifyPayment = async (req, res, next) => {
     const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
 
     const payment = await Payment.findOne({ razorpayOrderId });
-    if (!payment) return next(new ApiError(404, 'Payment record not found for this order'));
+    if (!payment) return next(new ApiError(404, "Payment record not found for this order"));
 
     const expectedSignature = crypto
-      .createHmac('sha256', env.razorpay.keySecret)
+      .createHmac("sha256", env.razorpay.keySecret)
       .update(`${razorpayOrderId}|${razorpayPaymentId}`)
-      .digest('hex');
+      .digest("hex");
 
     if (expectedSignature !== razorpaySignature) {
-      payment.status = 'failed';
+      payment.status = "failed";
       await payment.save();
-      return next(new ApiError(400, 'Payment signature verification failed'));
+      return next(new ApiError(400, "Payment signature verification failed"));
     }
 
     payment.razorpayPaymentId = razorpayPaymentId;
     payment.razorpaySignature = razorpaySignature;
-    payment.status = 'paid';
+    payment.status = "paid";
     payment.paidAt = new Date();
     await payment.save();
 
     const booking = await Booking.findById(payment.booking);
-    if (booking && booking.status === 'pending_payment') {
-      booking.status = 'confirmed';
+    if (booking && booking.status === "pending_payment") {
+      booking.status = "confirmed";
       await booking.save();
     }
 
     if (booking) {
       const presenterProfile = await PresenterProfile.findById(booking.presenter).populate(
-        'user',
-        'email name'
+        "user",
+        "email name"
       );
       if (presenterProfile?.user) {
-        await createNotification(req.app.get('io'), {
+        await createNotification(req.app.get("io"), {
           userId: presenterProfile.user._id,
-          type: 'payment_received',
-          title: 'Payment received',
+          type: "payment_received",
+          title: "Payment received",
           message: "The college has completed payment for your booking. It's now confirmed.",
           meta: { bookingId: booking._id },
           email: { to: presenterProfile.user.email },
@@ -136,9 +136,7 @@ export const verifyPayment = async (req, res, next) => {
       }
     }
 
-    return res
-      .status(200)
-      .json(new ApiResponse(200, { payment, booking }, 'Payment verified successfully'));
+    return res.status(200).json(new ApiResponse(200, { payment, booking }, "Payment verified successfully"));
   } catch (error) {
     next(error);
   }
@@ -148,15 +146,15 @@ export const getPaymentByBooking = async (req, res, next) => {
   try {
     const { bookingId } = req.params;
     const booking = await Booking.findById(bookingId);
-    if (!booking) return next(new ApiError(404, 'Booking not found'));
+    if (!booking) return next(new ApiError(404, "Booking not found"));
 
     const allowed = await assertBookingParticipant(booking, req.user);
-    if (!allowed) return next(new ApiError(403, 'You are not part of this booking'));
+    if (!allowed) return next(new ApiError(403, "You are not part of this booking"));
 
     const payment = await Payment.findOne({ booking: bookingId });
-    if (!payment) return next(new ApiError(404, 'No payment found for this booking'));
+    if (!payment) return next(new ApiError(404, "No payment found for this booking"));
 
-    return res.status(200).json(new ApiResponse(200, payment, 'Payment fetched'));
+    return res.status(200).json(new ApiResponse(200, payment, "Payment fetched"));
   } catch (error) {
     next(error);
   }
@@ -165,21 +163,19 @@ export const getPaymentByBooking = async (req, res, next) => {
 export const refundPayment = async (req, res, next) => {
   try {
     const collegeProfile = await CollegeProfile.findOne({ user: req.user._id });
-    if (!collegeProfile) return next(new ApiError(404, 'College profile not found'));
+    if (!collegeProfile) return next(new ApiError(404, "College profile not found"));
 
     const payment = await Payment.findById(req.params.id);
-    if (!payment) return next(new ApiError(404, 'Payment not found'));
+    if (!payment) return next(new ApiError(404, "Payment not found"));
 
     const booking = await Booking.findById(payment.booking);
-    if (!booking) return next(new ApiError(404, 'Associated booking not found'));
+    if (!booking) return next(new ApiError(404, "Associated booking not found"));
 
     if (booking.college.toString() !== collegeProfile._id.toString()) {
-      return next(new ApiError(403, 'You do not own this booking'));
+      return next(new ApiError(403, "You do not own this booking"));
     }
-    if (payment.status !== 'paid') {
-      return next(
-        new ApiError(400, `Only "paid" payments can be refunded (current: "${payment.status}")`)
-      );
+    if (payment.status !== "paid") {
+      return next(new ApiError(400, `Only "paid" payments can be refunded (current: "${payment.status}")`));
     }
 
     let refund;
@@ -188,22 +184,22 @@ export const refundPayment = async (req, res, next) => {
         amount: payment.amount * 100,
       });
     } catch (razorpayError) {
-      console.error('[razorpay] Refund failed:', JSON.stringify(razorpayError, null, 2));
-      return next(wrapRazorpayError(razorpayError, 'Failed to process refund via Razorpay.'));
+      console.error("[razorpay] Refund failed:", JSON.stringify(razorpayError, null, 2));
+      return next(wrapRazorpayError(razorpayError, "Failed to process refund via Razorpay."));
     }
 
-    payment.status = 'refunded';
+    payment.status = "refunded";
     payment.refundId = refund.id;
     payment.refundAmount = payment.amount;
     payment.refundedAt = new Date();
     await payment.save();
 
-    booking.status = 'cancelled';
+    booking.status = "cancelled";
     booking.cancelledAt = new Date();
-    booking.cancelReason = req.body.reason || 'Refund issued';
+    booking.cancelReason = req.body.reason || "Refund issued";
     await booking.save();
 
-    return res.status(200).json(new ApiResponse(200, payment, 'Payment refunded successfully'));
+    return res.status(200).json(new ApiResponse(200, payment, "Payment refunded successfully"));
   } catch (error) {
     next(error);
   }
