@@ -1,0 +1,15 @@
+{
+  "app": {
+    "name": "प्रेजेंटेशन प्लेटफ़ॉर्म"
+  },
+  "nav": {
+    "home": "होम",
+    "findPresenters": "प्रेजेंटर खोजें",
+    "findOpportunities": "अवसर खोजें",
+    "colleges": "कॉलेज",
+    "howItWorks": "यह कैसे काम करता है",
+    "pricing": "मूल्य निर्धारण",
+    "login": "लॉगिन",
+    "register": "रजिस्टर करें"
+  }
+}

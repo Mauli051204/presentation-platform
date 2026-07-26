@@ -1,0 +1,15 @@
+{
+  "app": {
+    "name": "Presentation Platform"
+  },
+  "nav": {
+    "home": "Home",
+    "findPresenters": "Find Presenters",
+    "findOpportunities": "Find Opportunities",
+    "colleges": "Colleges",
+    "howItWorks": "How It Works",
+    "pricing": "Pricing",
+    "login": "Login",
+    "register": "Register"
+  }
+}

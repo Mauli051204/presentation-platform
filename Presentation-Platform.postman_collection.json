@@ -1,0 +1,867 @@
+{
+  "info": {
+    "name": "Presentation Platform API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api/v1" },
+    { "key": "accessToken", "value": "" },
+    { "key": "presenterProfileId", "value": "" },
+    { "key": "certificateAssetId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register (College)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"St Xavier College\",\n  \"email\": \"college1@test.com\",\n  \"password\": \"Test1234\",\n  \"role\": \"college\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Register (Presenter)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Presenter\",\n  \"email\": \"presenter1@test.com\",\n  \"password\": \"Test1234\",\n  \"role\": \"presenter\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login (Presenter)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data?.data?.accessToken) { pm.collectionVariables.set('accessToken', data.data.accessToken); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"presenter1@test.com\",\n  \"password\": \"Test1234\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Me",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/auth/me"
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": { "method": "POST", "url": "{{baseUrl}}/auth/refresh-token" }
+        },
+        {
+          "name": "Logout",
+          "request": { "method": "POST", "url": "{{baseUrl}}/auth/logout" }
+        }
+      ]
+    },
+    {
+      "name": "Presenter",
+      "item": [
+        {
+          "name": "Create/Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/presenters/profile/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"headline\": \"Motivational Speaker & AI Educator\",\n  \"bio\": \"5+ years presenting on technology and career growth to college audiences.\",\n  \"skills\": [\"Public Speaking\", \"AI\", \"Career Guidance\"],\n  \"languages\": [\"English\", \"Tamil\"],\n  \"location\": { \"city\": \"Trichy\", \"state\": \"Tamil Nadu\" },\n  \"education\": [\n    { \"degree\": \"B.Tech CSE\", \"institution\": \"Anna University\", \"yearOfCompletion\": 2019 }\n  ],\n  \"experience\": [\n    { \"title\": \"Guest Speaker\", \"organization\": \"Freelance\", \"startDate\": \"2020-01-01\", \"isCurrent\": true }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/presenters/profile/me"
+          }
+        },
+        {
+          "name": "Update Availability",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/presenters/profile/availability",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dates\": [\"2026-08-10\", \"2026-08-11\", \"2026-08-15\"]\n}"
+            }
+          }
+        },
+        {
+          "name": "Upload Profile Image",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/presenters/profile/image",
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "image", "type": "file", "src": "" }]
+            }
+          }
+        },
+        {
+          "name": "Upload Resume",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/presenters/profile/resume",
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "resume", "type": "file", "src": "" }]
+            }
+          }
+        },
+        {
+          "name": "Upload Certificate",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/presenters/profile/certificates",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "type": "text", "value": "AWS Certified Cloud Practitioner" },
+                { "key": "certificate", "type": "file", "src": "" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Upload Video",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/presenters/profile/videos",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "type": "text", "value": "Sample Presentation Reel" },
+                { "key": "video", "type": "file", "src": "" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Upload Slide",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/presenters/profile/slides",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "type": "text", "value": "AI in Education - Deck" },
+                { "key": "slide", "type": "file", "src": "" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Certificate",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/presenters/profile/certificates/{{certificateAssetId}}"
+          }
+        },
+        {
+          "name": "List Presenters (Public, basic pagination)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/presenters?page=1&limit=10"
+          }
+        },
+        {
+          "name": "Get Presenter By Id (Public)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/presenters/{{presenterProfileId}}"
+          }
+        },
+        {
+  "name": "Search",
+  "item": [
+    {
+      "name": "Search Presenters (keyword+filters)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/presenters?keyword=AI&skills=AI,Public Speaking&city=Trichy&experienceMin=1&sortBy=rating&page=1&limit=10"
+      }
+    },
+    {
+      "name": "Search Requirements (keyword+filters)",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/requirements?keyword=AI&presentationType=online&budgetMin=2000&budgetMax=10000&city=Trichy&sortBy=budgetHigh"
+      }
+    },
+    {
+      "name": "Search Colleges (keyword+filters)",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/colleges?keyword=Xavier&city=Trichy&sortBy=rating"
+      }
+    },
+    {
+      "name": "Autocomplete Skills",
+      "request": { "method": "GET", "url": "{{baseUrl}}/search/autocomplete?type=skill&q=Ai" }
+    },
+    {
+      "name": "Autocomplete Location",
+      "request": { "method": "GET", "url": "{{baseUrl}}/search/autocomplete?type=location&q=Tri" }
+    },
+    {
+      "name": "Popular Searches",
+      "request": { "method": "GET", "url": "{{baseUrl}}/search/popular?type=requirement" }
+    },
+    {
+      "name": "Recent Searches (auth)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/search/recent?type=presenter"
+      }
+    }
+  ]
+},
+{
+  "name": "Applications",
+  "item": [
+    {
+      "name": "Apply to Requirement (Presenter)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const data = pm.response.json();",
+              "if (data?.data?._id) { pm.collectionVariables.set('applicationId', data.data._id); }"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": "{{baseUrl}}/applications",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"requirementId\": \"{{requirementId}}\",\n  \"coverNote\": \"I have 5 years of experience presenting on AI career topics to college audiences.\",\n  \"proposedFee\": 6000\n}"
+        }
+      }
+    },
+    {
+      "name": "Get My Applications (Presenter)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/applications/mine?status=applied"
+      }
+    },
+    {
+      "name": "Withdraw Application (Presenter)",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/applications/{{applicationId}}/withdraw"
+      }
+    },
+    {
+      "name": "Get Applications For Requirement (College)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/applications/requirement/{{requirementId}}"
+      }
+    },
+    {
+      "name": "Shortlist Application (College)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": "{{baseUrl}}/applications/{{applicationId}}/status",
+        "body": { "mode": "raw", "raw": "{\n  \"status\": \"shortlisted\"\n}" }
+      }
+    },
+    {
+      "name": "Reject Application (College)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": "{{baseUrl}}/applications/{{applicationId}}/status",
+        "body": { "mode": "raw", "raw": "{\n  \"status\": \"rejected\"\n}" }
+      }
+    }
+  ]
+},
+{
+  "name": "Chat",
+  "item": [
+    {
+      "name": "Get or Create Conversation (by Application)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const data = pm.response.json();",
+              "if (data?.data?._id) { pm.collectionVariables.set('conversationId', data.data._id); }"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/chat/conversations/application/{{applicationId}}"
+      }
+    },
+    {
+      "name": "List My Conversations",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/chat/conversations"
+      }
+    },
+    {
+      "name": "Get Messages (paginated)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/chat/conversations/{{conversationId}}/messages?page=1&limit=30"
+      }
+    },
+    {
+      "name": "Mark Conversation Read",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/chat/conversations/{{conversationId}}/read"
+      }
+    }
+  ]
+},
+{
+  "name": "Booking",
+  "item": [
+    {
+      "name": "Create Booking (College)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const data = pm.response.json();",
+              "if (data?.data?._id) { pm.collectionVariables.set('bookingId', data.data._id); }"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": "{{baseUrl}}/bookings",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"applicationId\": \"{{applicationId}}\",\n  \"agreedFee\": 6000,\n  \"meetingLink\": \"https://meet.google.com/abc-defg-hij\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Get My Bookings",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/bookings/mine"
+      }
+    },
+    {
+      "name": "Get Booking By Id",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/bookings/{{bookingId}}"
+      }
+    },
+    {
+      "name": "Update Meeting Link (College)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": "{{baseUrl}}/bookings/{{bookingId}}/meeting-link",
+        "body": { "mode": "raw", "raw": "{\n  \"meetingLink\": \"https://meet.google.com/xyz-uvwx-yz\"\n}" }
+      }
+    },
+    {
+      "name": "Complete Booking (College)",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/bookings/{{bookingId}}/complete"
+      }
+    },
+    {
+      "name": "Cancel Booking (College)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": "{{baseUrl}}/bookings/{{bookingId}}/cancel",
+        "body": { "mode": "raw", "raw": "{\n  \"reason\": \"College event postponed\"\n}" }
+      }
+    }
+  ]
+},
+{
+  "name": "Payments",
+  "item": [
+    {
+      "name": "Create Razorpay Order (College)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const data = pm.response.json();",
+              "if (data?.data?.razorpayOrder?.id) { pm.collectionVariables.set('razorpayOrderId', data.data.razorpayOrder.id); }"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": "{{baseUrl}}/payments/create-order",
+        "body": { "mode": "raw", "raw": "{\n  \"bookingId\": \"{{bookingId}}\"\n}" }
+      }
+    },
+    {
+      "name": "Verify Payment (College)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": "{{baseUrl}}/payments/verify",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"razorpayOrderId\": \"{{razorpayOrderId}}\",\n  \"razorpayPaymentId\": \"pay_XXXXXXXXXXXX\",\n  \"razorpaySignature\": \"generated_signature_from_checkout\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Get Payment By Booking",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/payments/booking/{{bookingId}}"
+      }
+    },
+    {
+      "name": "Refund Payment (College)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": "{{baseUrl}}/payments/{{paymentId}}/refund",
+        "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Event cancelled by college\"\n}" }
+      }
+    }
+  ]
+},
+{
+  "name": "Reviews",
+  "item": [
+    {
+      "name": "Create Review (College → Presenter)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": "{{baseUrl}}/reviews",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"bookingId\": \"{{bookingId}}\",\n  \"rating\": 5,\n  \"comment\": \"Excellent, engaging session — highly recommended!\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Get Reviews For Presenter (Public)",
+      "request": { "method": "GET", "url": "{{baseUrl}}/reviews/presenter/{{presenterProfileId}}" }
+    },
+    {
+      "name": "Get Reviews For College (Public)",
+      "request": { "method": "GET", "url": "{{baseUrl}}/reviews/college/{{collegeProfileId}}" }
+    }
+  ]
+},
+{
+  "name": "Notifications",
+  "item": [
+    {
+      "name": "Get My Notifications",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/notifications?page=1&limit=20"
+      }
+    },
+    {
+      "name": "Mark Notification Read",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/notifications/{{notificationId}}/read"
+      }
+    },
+    {
+      "name": "Mark All Notifications Read",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/notifications/read-all"
+      }
+    }
+  ]
+},
+{
+  "name": "Admin",
+  "item": [
+    {
+      "name": "Login (Admin)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const data = pm.response.json();",
+              "if (data?.data?.accessToken) { pm.collectionVariables.set('accessToken', data.data.accessToken); }"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@presentationplatform.com\",\n  \"password\": \"AdminPass123\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Dashboard Stats",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/admin/dashboard"
+      }
+    },
+    {
+      "name": "List Users",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/admin/users?role=presenter&page=1&limit=20"
+      }
+    },
+    {
+      "name": "Toggle User Active",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/admin/users/{{targetUserId}}/toggle-active"
+      }
+    },
+    {
+      "name": "List Colleges for Verification",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/admin/colleges?isVerified=false"
+      }
+    },
+    {
+      "name": "Verify College",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/admin/colleges/{{collegeProfileId}}/verify"
+      }
+    },
+    {
+      "name": "List All Requirements",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/admin/requirements?status=active"
+      }
+    },
+    {
+      "name": "Force Update Requirement Status",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": "{{baseUrl}}/admin/requirements/{{requirementId}}/status",
+        "body": { "mode": "raw", "raw": "{\n  \"status\": \"cancelled\"\n}" }
+      }
+    },
+    {
+      "name": "List All Payments",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/admin/payments?status=paid"
+      }
+    },
+    {
+      "name": "Revenue Report",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/admin/reports/revenue"
+      }
+    },
+    {
+      "name": "Reviews Moderation List",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/admin/reviews"
+      }
+    },
+    {
+      "name": "Delete Review (Admin)",
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/admin/reviews/{{reviewId}}"
+      }
+    }
+  ]
+},
+
+        {
+  "name": "College",
+  "item": [
+    {
+      "name": "Create/Update Profile",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": "{{baseUrl}}/colleges/profile/me",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"collegeName\": \"St Xavier College\",\n  \"description\": \"A leading arts and science college in Trichy.\",\n  \"website\": \"https://stxavier.edu\",\n  \"contactPerson\": { \"name\": \"Dr. Ramesh\", \"designation\": \"Dean of Student Affairs\", \"phone\": \"9876543210\" },\n  \"address\": { \"city\": \"Trichy\", \"state\": \"Tamil Nadu\", \"pincode\": \"620001\" }\n}"
+        }
+      }
+    },
+    {
+      "name": "Get My Profile",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/colleges/profile/me"
+      }
+    },
+    {
+      "name": "Update Departments",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": "{{baseUrl}}/colleges/profile/departments",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"departments\": [\n    { \"name\": \"Computer Science\", \"headOfDepartment\": \"Dr. Kumar\", \"contactEmail\": \"cse@stxavier.edu\" }\n  ]\n}"
+        }
+      }
+    },
+    {
+      "name": "Upload Logo",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/colleges/profile/logo",
+        "body": { "mode": "formdata", "formdata": [{ "key": "logo", "type": "file", "src": "" }] }
+      }
+    },
+    {
+      "name": "Upload Gallery Image",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/colleges/profile/gallery",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "caption", "type": "text", "value": "Annual Tech Fest 2025" },
+            { "key": "image", "type": "file", "src": "" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "List Colleges (Public)",
+      "request": { "method": "GET", "url": "{{baseUrl}}/colleges?page=1&limit=10" }
+    },
+    {
+      "name": "Get College By Id (Public)",
+      "request": { "method": "GET", "url": "{{baseUrl}}/colleges/{{collegeProfileId}}" }
+    }
+  ]
+},
+{
+  "name": "Requirements",
+  "item": [
+    {
+      "name": "Create Requirement",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const data = pm.response.json();",
+              "if (data?.data?._id) { pm.collectionVariables.set('requirementId', data.data._id); }"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": "{{baseUrl}}/requirements",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Guest Lecture on AI in Careers\",\n  \"description\": \"Looking for an experienced speaker to talk to final-year CS students about AI careers.\",\n  \"department\": \"Computer Science\",\n  \"presentationType\": \"online\",\n  \"requiredSkills\": [\"AI\", \"Career Guidance\"],\n  \"requiredLanguages\": [\"English\"],\n  \"budgetMin\": 3000,\n  \"budgetMax\": 8000,\n  \"numberOfPresentersNeeded\": 1,\n  \"eventDate\": \"2026-08-20T10:00:00.000Z\",\n  \"durationMinutes\": 60,\n  \"applicationDeadline\": \"2026-08-10T23:59:59.000Z\",\n  \"location\": { \"city\": \"Trichy\", \"state\": \"Tamil Nadu\", \"venue\": \"Online\" }\n}"
+        }
+      }
+    },
+    {
+      "name": "Update Requirement",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": "{{baseUrl}}/requirements/{{requirementId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Guest Lecture on AI in Careers (Updated)\",\n  \"description\": \"Updated description with more details.\",\n  \"presentationType\": \"online\",\n  \"budgetMin\": 3500,\n  \"budgetMax\": 9000,\n  \"eventDate\": \"2026-08-22T10:00:00.000Z\",\n  \"durationMinutes\": 60,\n  \"applicationDeadline\": \"2026-08-12T23:59:59.000Z\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Mark Requirement Active",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": "{{baseUrl}}/requirements/{{requirementId}}/status",
+        "body": { "mode": "raw", "raw": "{\n  \"status\": \"active\"\n}" }
+      }
+    },
+    {
+      "name": "Get My Requirements",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/requirements/mine/all"
+      }
+    },
+    {
+      "name": "List Active Requirements (Public)",
+      "request": { "method": "GET", "url": "{{baseUrl}}/requirements?page=1&limit=10" }
+    },
+    {
+      "name": "Get Requirement By Id (Public)",
+      "request": { "method": "GET", "url": "{{baseUrl}}/requirements/{{requirementId}}" }
+    },
+    {
+      "name": "Delete Requirement",
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/requirements/{{requirementId}}"
+      }
+    }
+  ]
+}
+      ]
+    }
+  ]
+}
