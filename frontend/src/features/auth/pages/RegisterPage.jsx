@@ -20,6 +20,8 @@ const RegisterPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  const isCollege = form.role === 'college';
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -60,7 +62,7 @@ const RegisterPage = () => {
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => setForm({ ...form, role: 'presenter' })}
+                onClick={() => setForm((f) => ({ ...f, role: 'presenter' }))}
                 className={`flex items-center justify-center gap-2 rounded-lg border-2 py-2.5 text-sm font-medium transition-colors ${
                   form.role === 'presenter'
                     ? 'border-primary bg-primary/5 text-primary'
@@ -71,7 +73,7 @@ const RegisterPage = () => {
               </button>
               <button
                 type="button"
-                onClick={() => setForm({ ...form, role: 'college' })}
+                onClick={() => setForm((f) => ({ ...f, role: 'college' }))}
                 className={`flex items-center justify-center gap-2 rounded-lg border-2 py-2.5 text-sm font-medium transition-colors ${
                   form.role === 'college'
                     ? 'border-primary bg-primary/5 text-primary'
@@ -84,12 +86,18 @@ const RegisterPage = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Name</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              {isCollege ? 'College Name' : 'Name'}
+            </label>
             <div className="relative">
-              <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              {isCollege ? (
+                <Building2 className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              ) : (
+                <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              )}
               <input
                 required
-                placeholder="Your full name"
+                placeholder={isCollege ? 'e.g. St. Xavier College' : 'Your full name'}
                 className="w-full rounded-lg border border-slate-300 pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -98,13 +106,15 @@ const RegisterPage = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              {isCollege ? 'College Email' : 'Email'}
+            </label>
             <div className="relative">
               <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="email"
                 required
-                placeholder="you@example.com"
+                placeholder={isCollege ? 'admissions@yourcollege.edu' : 'you@example.com'}
                 className="w-full rounded-lg border border-slate-300 pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}

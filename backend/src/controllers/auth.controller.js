@@ -24,15 +24,13 @@ const cookieOptions = (expiresAt) => ({
 const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const PASSWORD_RESET_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
-const safeSendEmail = async (payload) => {
-  try {
-    await sendEmail(payload);
-  } catch (error) {
+const safeSendEmail = (payload) => {
+  // Deliberately not awaited by callers — email delivery should never make
+  // the user wait for the register/login response. Fire it and let it
+  // resolve in the background; failures are just logged.
+  sendEmail(payload).catch((error) => {
     console.error(`[email] Failed to send email to ${payload.to}: ${error.message}`);
-    // Intentionally swallowed — a broken SMTP config must never fail the
-    // underlying business operation (registration, password reset, etc).
-    // The user/account state is already persisted before this is called.
-  }
+  });
 };
 
 export const register = async (req, res, next) => {
@@ -52,7 +50,7 @@ export const register = async (req, res, next) => {
     await user.save();
 
     const verifyUrl = `${env.clientUrl}/verify-email?token=${rawToken}`;
-    await safeSendEmail({
+    safeSendEmail({
       to: user.email,
       subject: 'Verify your Presentation Platform account',
       html: `<p>Hi ${user.name},</p><p>Click below to verify your email:</p><p><a href="${verifyUrl}">${verifyUrl}</a></p><p>This link expires in 24 hours.</p>`,
@@ -196,7 +194,7 @@ export const resendVerificationEmail = async (req, res, next) => {
     await user.save();
 
     const verifyUrl = `${env.clientUrl}/verify-email?token=${rawToken}`;
-    await safeSendEmail({
+    safeSendEmail({
       to: user.email,
       subject: 'Verify your Presentation Platform account',
       html: `<p>Click below to verify your email:</p><p><a href="${verifyUrl}">${verifyUrl}</a></p>`,
@@ -233,7 +231,7 @@ export const forgotPassword = async (req, res, next) => {
     await user.save();
 
     const resetUrl = `${env.clientUrl}/reset-password?token=${rawToken}`;
-    await safeSendEmail({
+    safeSendEmail({
       to: user.email,
       subject: 'Reset your Presentation Platform password',
       html: `<p>Click below to reset your password:</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>This link expires in 15 minutes.</p>`,
