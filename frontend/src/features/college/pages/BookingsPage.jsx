@@ -57,12 +57,12 @@ const BookingsPage = () => {
   const [cancelTarget, setCancelTarget] = useState(null);
   const [cancelReason, setCancelReason] = useState("");
   const [completeTarget, setCompleteTarget] = useState(null);
+  const [isCompleting, setIsCompleting] = useState(false);
   const [busyId, setBusyId] = useState(null);
   const [payingId, setPayingId] = useState(null);
   const [reviewTarget, setReviewTarget] = useState(null);
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: "" });
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
-  const [reviewedBookingIds, setReviewedBookingIds] = useState([]);
 
   const load = async () => {
     setIsLoading(true);
@@ -105,17 +105,24 @@ const BookingsPage = () => {
     }
   };
 
+  // Optimistic: flip the UI to "completed" immediately on confirm so the
+  // modal closes and the card updates instantly, instead of waiting on the
+  // full round trip before anything visibly changes. Reverts on error.
   const handleConfirmComplete = async () => {
-    setBusyId(completeTarget._id);
+    const targetId = completeTarget._id;
+    const previousBookings = bookings;
+    setIsCompleting(true);
+    setBookings((prev) => prev.map((b) => (b._id === targetId ? { ...b, status: "completed" } : b)));
+    setCompleteTarget(null);
+
     try {
-      await completeBooking(completeTarget._id);
+      await completeBooking(targetId);
       toast.success("Booking marked completed — payout released");
-      setCompleteTarget(null);
-      await load();
     } catch (error) {
+      setBookings(previousBookings);
       toast.error(error.response?.data?.message || "Failed to complete booking");
     } finally {
-      setBusyId(null);
+      setIsCompleting(false);
     }
   };
 
@@ -193,24 +200,29 @@ const BookingsPage = () => {
     setReviewForm({ rating: 5, comment: "" });
   };
 
+  // Optimistic: hide the "Leave Review" button and close the modal the
+  // instant the user submits, rather than making them wait on the network
+  // before seeing any change.
   const handleSubmitReview = async (e) => {
     e.preventDefault();
+    const targetId = reviewTarget._id;
+    const previousBookings = bookings;
     setIsSubmittingReview(true);
+    setBookings((prev) => prev.map((b) => (b._id === targetId ? { ...b, hasReviewed: true } : b)));
+    setReviewTarget(null);
+
     try {
       await submitReview({
-        bookingId: reviewTarget._id,
+        bookingId: targetId,
         rating: reviewForm.rating,
         comment: reviewForm.comment,
       });
       toast.success("Review submitted — sent to the presenter");
-      setReviewedBookingIds((prev) => [...prev, reviewTarget._id]);
-      setReviewTarget(null);
     } catch (error) {
       if (error.response?.status === 409) {
         toast.error("You've already reviewed this booking");
-        setReviewedBookingIds((prev) => [...prev, reviewTarget._id]);
-        setReviewTarget(null);
       } else {
+        setBookings(previousBookings);
         toast.error(error.response?.data?.message || "Failed to submit review");
       }
     } finally {
@@ -312,13 +324,12 @@ const BookingsPage = () => {
                   {booking.status === "confirmed" && (
                     <button
                       onClick={() => setCompleteTarget(booking)}
-                      disabled={busyId === booking._id}
-                      className="flex items-center gap-1.5 text-sm bg-success text-white rounded-lg px-3 py-1.5 hover:opacity-90 disabled:opacity-50 whitespace-nowrap transition-opacity"
+                      className="flex items-center gap-1.5 text-sm bg-success text-white rounded-lg px-3 py-1.5 hover:opacity-90 whitespace-nowrap transition-opacity"
                     >
                       <CheckCircle2 className="w-4 h-4" /> Mark Completed
                     </button>
                   )}
-                  {booking.status === "completed" && !reviewedBookingIds.includes(booking._id) && (
+                  {booking.status === "completed" && !booking.hasReviewed && (
                     <button
                       onClick={() => openReviewModal(booking)}
                       className="flex items-center gap-1.5 text-sm bg-warning text-white rounded-lg px-3 py-1.5 hover:opacity-90 whitespace-nowrap transition-opacity"
@@ -372,7 +383,7 @@ const BookingsPage = () => {
         description="This releases the presenter's payout. This action cannot be undone."
         confirmLabel="Mark Completed"
         isDangerous={false}
-        isLoading={busyId === completeTarget?._id}
+        isLoading={isCompleting}
         icon={CheckCircle2}
       />
 

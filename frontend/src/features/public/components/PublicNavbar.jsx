@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, Link, NavLink } from 'react-router-dom';
 import {
   Menu,
@@ -84,10 +85,18 @@ const PublicNavbar = () => {
     navigate('/');
   };
 
+  // Explicit navigate() call (not a plain <Link>/<a>) guarantees this always
+  // stays in the current tab regardless of browser/extension quirks — no
+  // target="_blank" involved anywhere in this flow.
+  const handleGoToDashboard = () => {
+    setIsProfileMenuOpen(false);
+    setIsOpen(false);
+    navigate(roleToDashboard[user?.role] || '/');
+  };
+
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 h-16 flex items-center gap-3 sm:gap-6">
-        {/* Hamburger — left corner, mobile/tablet only */}
         <button
           onClick={() => setIsOpen(true)}
           className="lg:hidden text-slate-600 shrink-0 -ml-1 p-1"
@@ -97,9 +106,7 @@ const PublicNavbar = () => {
         </button>
 
         <Link to="/" className="flex items-center gap-2 shrink-0">
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-            <Presentation className="w-5 h-5 text-white" />
-          </div>
+          <img src="/logo-mark.png" alt="Presentation Platform" className="w-9 h-9 object-contain" />
           <span className="text-lg font-semibold text-slate-900 hidden xl:inline">
             Presentation Platform
           </span>
@@ -137,7 +144,6 @@ const PublicNavbar = () => {
           </div>
         </form>
 
-        {/* Bell + Profile — always right corner, visible on every breakpoint */}
         <div className="flex items-center gap-3 sm:gap-4 shrink-0 ml-auto md:ml-0">
           {user && (
             <Link
@@ -170,13 +176,12 @@ const PublicNavbar = () => {
                     <p className="text-sm font-medium text-slate-900 truncate">{user.name}</p>
                     <p className="text-xs text-slate-400 capitalize">{user.role}</p>
                   </div>
-                  <Link
-                    to={roleToDashboard[user.role] || '/'}
-                    onClick={() => setIsProfileMenuOpen(false)}
-                    className="flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                  <button
+                    onClick={handleGoToDashboard}
+                    className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
                   >
                     <LayoutDashboard className="w-4 h-4 text-slate-400" /> Go to Dashboard
-                  </Link>
+                  </button>
                   <button
                     onClick={handleLogout}
                     className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-danger hover:bg-slate-50"
@@ -224,98 +229,101 @@ const PublicNavbar = () => {
         </form>
       </div>
 
-      {/* Slide-out drawer — nav links only; bell/profile stay in the top bar */}
-      {isOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div
-            onClick={() => setIsOpen(false)}
-            className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm"
-          />
-          <div className="fixed inset-y-0 left-0 h-full w-72 max-w-[85vw] bg-white shadow-2xl flex flex-col">
-            <div className="h-16 shrink-0 flex items-center justify-between px-4 border-b border-slate-100">
-              <span className="text-sm font-semibold text-slate-900">Menu</span>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {user && (
-              <div className="px-4 py-4 border-b border-slate-100 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-sm font-semibold shrink-0">
-                  {initials(user.name)}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-slate-900 truncate">{user.name}</p>
-                  <p className="text-xs text-slate-400 capitalize">{user.role}</p>
-                </div>
-              </div>
-            )}
-
-            <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-              {navLinks.map((link) => (
-                <NavLink
-                  key={link.path}
-                  to={link.path}
-                  end={link.exact}
-                  onClick={() => setIsOpen(false)}
-                  className={({ isActive }) =>
-                    `block px-3 py-2.5 rounded-lg text-sm font-medium ${
-                      isActive
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-slate-600 hover:bg-slate-50'
-                    }`
-                  }
-                >
-                  {link.label}
-                </NavLink>
-              ))}
-              {user && (
-                <>
-                  <div className="h-px bg-slate-100 my-2" />
-                  <Link
-                    to={roleToDashboard[user.role] || '/'}
-                    onClick={() => setIsOpen(false)}
-                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50"
-                  >
-                    <LayoutDashboard className="w-4 h-4 text-slate-400" /> Go to Dashboard
-                  </Link>
-                </>
-              )}
-            </nav>
-
-            <div className="p-4 border-t border-slate-100 space-y-2 shrink-0">
-              {user ? (
+      {/* Rendered via portal to document.body — escapes the header's
+          backdrop-blur containing block, so `fixed inset-0` here correctly
+          covers the entire viewport instead of just the header's box. */}
+      {isOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-[100] lg:hidden">
+            <div
+              onClick={() => setIsOpen(false)}
+              className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm"
+            />
+            <div className="fixed inset-y-0 left-0 h-full w-72 max-w-[85vw] bg-white shadow-2xl flex flex-col">
+              <div className="h-16 shrink-0 flex items-center justify-between px-4 border-b border-slate-100">
+                <span className="text-sm font-semibold text-slate-900">Menu</span>
                 <button
-                  onClick={handleLogout}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-danger/30 text-sm font-medium text-danger"
+                  onClick={() => setIsOpen(false)}
+                  className="text-slate-400 hover:text-slate-600"
                 >
-                  <LogOut className="w-4 h-4" /> Log out
+                  <X className="w-5 h-5" />
                 </button>
-              ) : (
-                <>
-                  <Link
-                    to="/login"
-                    onClick={() => setIsOpen(false)}
-                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-slate-300 text-sm font-medium text-slate-700"
-                  >
-                    <User className="w-4 h-4" /> Log in
-                  </Link>
-                  <Link
-                    to="/register"
-                    onClick={() => setIsOpen(false)}
-                    className="block text-center px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
-                  >
-                    Register
-                  </Link>
-                </>
+              </div>
+
+              {user && (
+                <div className="px-4 py-4 border-b border-slate-100 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-sm font-semibold shrink-0">
+                    {initials(user.name)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-900 truncate">{user.name}</p>
+                    <p className="text-xs text-slate-400 capitalize">{user.role}</p>
+                  </div>
+                </div>
               )}
+
+              <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+                {navLinks.map((link) => (
+                  <NavLink
+                    key={link.path}
+                    to={link.path}
+                    end={link.exact}
+                    onClick={() => setIsOpen(false)}
+                    className={({ isActive }) =>
+                      `block px-3 py-2.5 rounded-lg text-sm font-medium ${
+                        isActive
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-slate-600 hover:bg-slate-50'
+                      }`
+                    }
+                  >
+                    {link.label}
+                  </NavLink>
+                ))}
+                {user && (
+                  <>
+                    <div className="h-px bg-slate-100 my-2" />
+                    <button
+                      onClick={handleGoToDashboard}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50"
+                    >
+                      <LayoutDashboard className="w-4 h-4 text-slate-400" /> Go to Dashboard
+                    </button>
+                  </>
+                )}
+              </nav>
+
+              <div className="p-4 border-t border-slate-100 space-y-2 shrink-0">
+                {user ? (
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-danger/30 text-sm font-medium text-danger"
+                  >
+                    <LogOut className="w-4 h-4" /> Log out
+                  </button>
+                ) : (
+                  <>
+                    <Link
+                      to="/login"
+                      onClick={() => setIsOpen(false)}
+                      className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-slate-300 text-sm font-medium text-slate-700"
+                    >
+                      <User className="w-4 h-4" /> Log in
+                    </Link>
+                    <Link
+                      to="/register"
+                      onClick={() => setIsOpen(false)}
+                      className="block text-center px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
+                    >
+                      Register
+                    </Link>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </header>
   );
 };

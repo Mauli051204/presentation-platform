@@ -21,10 +21,12 @@ const applicationSchema = new mongoose.Schema(
     proposedFee: { type: Number, min: 0, default: null },
     status: {
       type: String,
-      enum: ['applied', 'shortlisted','booked', 'rejected', 'withdrawn' ],
+      enum: ['applied', 'shortlisted', 'rejected', 'withdrawn', 'booked', 'completed'],
       default: 'applied',
     },
     reviewedAt: { type: Date, default: null },
+    rejectionReason: { type: String, trim: true, default: '' },
+    withdrawReason: { type: String, trim: true, default: '' },
   },
   { timestamps: true }
 );

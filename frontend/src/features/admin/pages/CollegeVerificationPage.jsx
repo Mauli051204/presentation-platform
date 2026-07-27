@@ -7,7 +7,7 @@ import Badge from '@/components/ui/Badge';
 import { listCollegesForVerification, verifyCollege } from '../api/adminApi';
 
 const filterOptions = [
-  { value: 'false', label: 'Pending ' },
+  { value: 'false', label: 'Pending Verification' },
   { value: 'true', label: 'Verified' },
   { value: '', label: 'All' },
 ];
@@ -37,13 +37,25 @@ const CollegeVerificationPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
+  // Optimistic verify: if we're on the "Pending" tab, the card should
+  // vanish from the list immediately on click; if we're on "All", it should
+  // instantly flip its badge to Verified — either way, no waiting on the
+  // network round trip to see the change. Reverts only on actual failure.
   const handleVerify = async (id) => {
+    const previous = colleges;
     setBusyId(id);
+
+    if (filter === 'false') {
+      setColleges((prev) => prev.filter((c) => c._id !== id));
+    } else {
+      setColleges((prev) => prev.map((c) => (c._id === id ? { ...c, isVerified: true } : c)));
+    }
+
     try {
       await verifyCollege(id);
       toast.success('College verified — notification sent');
-      await load();
     } catch (error) {
+      setColleges(previous);
       toast.error(error.response?.data?.message || 'Failed to verify college');
     } finally {
       setBusyId(null);
@@ -111,7 +123,7 @@ const CollegeVerificationPage = () => {
                       className="flex items-center gap-1.5 text-sm bg-success text-white rounded-lg px-3 py-1.5 hover:opacity-90 disabled:opacity-50 whitespace-nowrap transition-opacity"
                     >
                       <ShieldCheck className="w-4 h-4" />
-                      {busyId === c._id ? 'Verifying...' : 'Verify'}
+                      Verify
                     </button>
                   )}
                 </div>

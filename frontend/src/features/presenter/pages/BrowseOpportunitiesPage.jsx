@@ -8,8 +8,7 @@ import TextInput from '@/components/ui/TextInput';
 import Select from '@/components/ui/Select';
 import Pagination from '@/components/ui/Pagination';
 import { searchRequirements } from '../api/requirementApi';
-import { applyToRequirement } from '../api/applicationApi';
-import { formatBudget } from '@/utils/formatBudget';
+import { applyToRequirement, getMyApplications } from '../api/applicationApi';
 
 const emptyFilters = {
   keyword: '',
@@ -17,6 +16,8 @@ const emptyFilters = {
   presentationType: '',
   sortBy: '',
 };
+
+const APPLIED_STATUSES = ['applied', 'shortlisted', 'booked'];
 
 const BrowseOpportunitiesPage = () => {
   const navigate = useNavigate();
@@ -26,6 +27,20 @@ const BrowseOpportunitiesPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [applyingId, setApplyingId] = useState(null);
   const [appliedIds, setAppliedIds] = useState([]);
+
+  const loadAppliedRequirementIds = async () => {
+    try {
+      const { data } = await getMyApplications();
+      const ids = data.data
+        .filter((app) => APPLIED_STATUSES.includes(app.status))
+        .map((app) => app.requirement?._id)
+        .filter(Boolean);
+      setAppliedIds(ids);
+    } catch {
+      // Non-fatal — if this fails, buttons just won't reflect prior applications
+      // until the next successful load; the apply flow itself still works.
+    }
+  };
 
   const fetchRequirements = async (page = 1) => {
     setIsLoading(true);
@@ -47,6 +62,7 @@ const BrowseOpportunitiesPage = () => {
 
   useEffect(() => {
     fetchRequirements(1);
+    loadAppliedRequirementIds();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -61,6 +77,8 @@ const BrowseOpportunitiesPage = () => {
   };
 
   const handleApply = async (requirement) => {
+    if (appliedIds.includes(requirement._id)) return;
+
     setApplyingId(requirement._id);
     try {
       await applyToRequirement({ requirementId: requirement._id });
@@ -185,8 +203,7 @@ const BrowseOpportunitiesPage = () => {
                         </Badge>
                       )}
                       <Badge variant="success">
-                        <IndianRupee className="w-3 h-3" />{' '}
-                        {formatBudget(req.budgetMin, req.budgetMax)}
+                        <IndianRupee className="w-3 h-3" /> {req.budgetMin} – {req.budgetMax}
                       </Badge>
                       <Badge variant="neutral">
                         <CalendarDays className="w-3 h-3" />{' '}
@@ -199,7 +216,7 @@ const BrowseOpportunitiesPage = () => {
                     disabled={applyingId === req._id || hasApplied}
                     className={`rounded-lg px-5 py-2.5 text-sm font-medium whitespace-nowrap w-full sm:w-auto transition-opacity flex items-center justify-center gap-2 ${
                       hasApplied
-                        ? 'bg-success/10 text-success cursor-default'
+                        ? 'bg-success/10 text-success cursor-not-allowed'
                         : 'bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50'
                     }`}
                   >

@@ -11,7 +11,10 @@ import {
   Video as VideoIcon,
   Presentation,
   CalendarDays,
+  Eye, Download,
 } from "lucide-react";
+import { downloadFile } from '@/utils/downloadFile';
+import { viewFile } from '@/utils/viewFile';
 import Card from "@/components/ui/Card";
 import TextInput from "@/components/ui/TextInput";
 import TextArea from "@/components/ui/TextArea";
@@ -243,14 +246,16 @@ const checklist = [
       <Card>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-base font-semibold text-slate-900">Profile completeness</h3>
-          <span className={`text-sm font-medium ${completionPercent === 100 ? "text-success" : "text-primary"}`}>
+          <span
+            className={`text-sm font-medium ${completionPercent === 100 ? 'text-success' : 'text-primary'}`}
+          >
             {completionPercent}%
           </span>
         </div>
         <div className="w-full bg-slate-100 rounded-full h-2 mb-4 overflow-hidden">
           <div
             className={`h-full rounded-full transition-all ${
-              completionPercent === 100 ? "bg-success" : "bg-primary"
+              completionPercent === 100 ? 'bg-success' : 'bg-primary'
             }`}
             style={{ width: `${completionPercent}%` }}
           />
@@ -318,7 +323,7 @@ const checklist = [
             disabled={isSaving}
             className="bg-primary text-primary-foreground rounded-md px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
           >
-            {isSaving ? "Saving..." : "Save Basic Info"}
+            {isSaving ? 'Saving...' : 'Save Basic Info'}
           </button>
         </form>
       </Card>
@@ -332,22 +337,25 @@ const checklist = [
         </div>
         <div className="space-y-4 mt-4">
           {profile.education.map((edu, i) => (
-            <div key={i} className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end border-b border-slate-100 pb-4">
+            <div
+              key={i}
+              className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end border-b border-slate-100 pb-4"
+            >
               <TextInput
                 label="Degree"
                 value={edu.degree}
-                onChange={(e) => updateEducation(i, "degree", e.target.value)}
+                onChange={(e) => updateEducation(i, 'degree', e.target.value)}
               />
               <TextInput
                 label="Institution"
                 value={edu.institution}
-                onChange={(e) => updateEducation(i, "institution", e.target.value)}
+                onChange={(e) => updateEducation(i, 'institution', e.target.value)}
               />
               <TextInput
                 label="Year"
                 type="number"
                 value={edu.yearOfCompletion}
-                onChange={(e) => updateEducation(i, "yearOfCompletion", e.target.value)}
+                onChange={(e) => updateEducation(i, 'yearOfCompletion', e.target.value)}
               />
               <button onClick={() => removeEducation(i)} className="text-danger text-sm h-10">
                 Remove
@@ -355,7 +363,9 @@ const checklist = [
             </div>
           ))}
           {profile.education.length === 0 && (
-            <p className="text-sm text-slate-500">No education entries yet — add at least one to apply.</p>
+            <p className="text-sm text-slate-500">
+              No education entries yet — add at least one to apply.
+            </p>
           )}
         </div>
       </Card>
@@ -374,32 +384,32 @@ const checklist = [
                 <TextInput
                   label="Title"
                   value={exp.title}
-                  onChange={(e) => updateExperience(i, "title", e.target.value)}
+                  onChange={(e) => updateExperience(i, 'title', e.target.value)}
                 />
                 <TextInput
                   label="Organization"
                   value={exp.organization}
-                  onChange={(e) => updateExperience(i, "organization", e.target.value)}
+                  onChange={(e) => updateExperience(i, 'organization', e.target.value)}
                 />
               </div>
               <TextArea
                 label="Description"
                 rows={2}
                 value={exp.description}
-                onChange={(e) => updateExperience(i, "description", e.target.value)}
+                onChange={(e) => updateExperience(i, 'description', e.target.value)}
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
                 <TextInput
                   label="Start Date"
                   type="date"
-                  value={exp.startDate ? exp.startDate.slice(0, 10) : ""}
-                  onChange={(e) => updateExperience(i, "startDate", e.target.value)}
+                  value={exp.startDate ? exp.startDate.slice(0, 10) : ''}
+                  onChange={(e) => updateExperience(i, 'startDate', e.target.value)}
                 />
                 <label className="flex items-center gap-2 text-sm text-slate-700 mt-6">
                   <input
                     type="checkbox"
                     checked={exp.isCurrent}
-                    onChange={(e) => updateExperience(i, "isCurrent", e.target.checked)}
+                    onChange={(e) => updateExperience(i, 'isCurrent', e.target.checked)}
                   />
                   Currently working here
                 </label>
@@ -418,7 +428,7 @@ const checklist = [
               disabled={isSaving}
               className="bg-primary text-primary-foreground rounded-md px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
             >
-              {isSaving ? "Saving..." : "Save Education & Experience"}
+              {isSaving ? 'Saving...' : 'Save Education & Experience'}
             </button>
           )}
         </div>
@@ -428,25 +438,35 @@ const checklist = [
         <SectionHeading icon={FileText} title="Resume" tag={<OptionalTag />} />
         <div className="mt-4">
           {profile.resume?.url && (
-            <a
-              href={profile.resume.url}
-              target="_blank"
-              rel="noreferrer"
-              className="text-sm text-primary block mb-3"
-            >
-              View current resume →
-            </a>
+            <div className="flex items-center gap-4 mb-3">
+              <button
+                onClick={() => viewFile(profile.resume.url)}
+                className="text-sm text-primary font-medium flex items-center gap-1.5"
+              >
+                <Eye className="w-4 h-4" /> View Resume
+              </button>
+              <button
+                onClick={() =>
+                  downloadFile(profile.resume.url, `${profile.headline || 'resume'}.pdf`)
+                }
+                className="text-sm text-primary font-medium flex items-center gap-1.5"
+              >
+                <Download className="w-4 h-4" /> Download PDF
+              </button>
+            </div>
           )}
           <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-lg py-6 cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors">
             <FileText className="w-6 h-6 text-slate-400 mb-2" />
             <span className="text-sm text-slate-500">
-              {profile.resume?.url ? "Click to replace resume" : "Click to upload resume (optional, PDF or Word)"}
+              {profile.resume?.url
+                ? 'Click to replace resume'
+                : 'Click to upload resume (optional, PDF or Word)'}
             </span>
             <input
               type="file"
               accept=".pdf,.doc,.docx"
               className="hidden"
-              onChange={handleFileUpload(uploadResume, "Resume uploaded")}
+              onChange={handleFileUpload(uploadResume, 'Resume uploaded')}
             />
           </label>
         </div>
@@ -463,12 +483,12 @@ const checklist = [
             />
           )}
           <label className="text-sm text-primary font-medium cursor-pointer">
-            {profile.profileImage?.url ? "Change photo" : "Upload photo"}
+            {profile.profileImage?.url ? 'Change photo' : 'Upload photo'}
             <input
               type="file"
               accept="image/*"
               className="hidden"
-              onChange={handleFileUpload(uploadProfileImage, "Image uploaded")}
+              onChange={handleFileUpload(uploadProfileImage, 'Image uploaded')}
             />
           </label>
         </div>
@@ -481,11 +501,17 @@ const checklist = [
         </p>
         <ul className="space-y-1 mb-3">
           {(profile.certificates || []).map((c) => (
-            <li key={c._id} className="text-sm flex items-center justify-between bg-slate-50 rounded-md px-3 py-2">
+            <li
+              key={c._id}
+              className="text-sm flex items-center justify-between bg-slate-50 rounded-md px-3 py-2"
+            >
               <a href={c.url} target="_blank" rel="noreferrer" className="text-primary">
                 {c.title}
               </a>
-              <button onClick={() => handleDeleteAsset(deleteCertificate)(c._id)} className="text-danger text-xs">
+              <button
+                onClick={() => handleDeleteAsset(deleteCertificate)(c._id)}
+                className="text-danger text-xs"
+              >
                 Remove
               </button>
             </li>
@@ -505,8 +531,8 @@ const checklist = [
               accept="image/*"
               className="hidden"
               onChange={(e) => {
-                const title = document.getElementById("cert-title").value || "Certificate";
-                handleFileUpload(uploadCertificate, "Certificate uploaded", title)(e);
+                const title = document.getElementById('cert-title').value || 'Certificate';
+                handleFileUpload(uploadCertificate, 'Certificate uploaded', title)(e);
               }}
             />
           </label>
@@ -520,11 +546,17 @@ const checklist = [
         </p>
         <ul className="space-y-1 mb-3">
           {(profile.videos || []).map((v) => (
-            <li key={v._id} className="text-sm flex items-center justify-between bg-slate-50 rounded-md px-3 py-2">
+            <li
+              key={v._id}
+              className="text-sm flex items-center justify-between bg-slate-50 rounded-md px-3 py-2"
+            >
               <a href={v.url} target="_blank" rel="noreferrer" className="text-primary">
                 {v.title}
               </a>
-              <button onClick={() => handleDeleteAsset(deleteVideo)(v._id)} className="text-danger text-xs">
+              <button
+                onClick={() => handleDeleteAsset(deleteVideo)(v._id)}
+                className="text-danger text-xs"
+              >
                 Remove
               </button>
             </li>
@@ -544,8 +576,8 @@ const checklist = [
               accept="video/*"
               className="hidden"
               onChange={(e) => {
-                const title = document.getElementById("video-title").value || "Video";
-                handleFileUpload(uploadVideo, "Video uploaded", title)(e);
+                const title = document.getElementById('video-title').value || 'Video';
+                handleFileUpload(uploadVideo, 'Video uploaded', title)(e);
               }}
             />
           </label>
@@ -559,11 +591,17 @@ const checklist = [
         </p>
         <ul className="space-y-1 mb-3">
           {(profile.presentationSlides || []).map((s) => (
-            <li key={s._id} className="text-sm flex items-center justify-between bg-slate-50 rounded-md px-3 py-2">
+            <li
+              key={s._id}
+              className="text-sm flex items-center justify-between bg-slate-50 rounded-md px-3 py-2"
+            >
               <a href={s.url} target="_blank" rel="noreferrer" className="text-primary">
                 {s.title}
               </a>
-              <button onClick={() => handleDeleteAsset(deleteSlide)(s._id)} className="text-danger text-xs">
+              <button
+                onClick={() => handleDeleteAsset(deleteSlide)(s._id)}
+                className="text-danger text-xs"
+              >
                 Remove
               </button>
             </li>
@@ -583,8 +621,8 @@ const checklist = [
               accept=".ppt,.pptx,.pdf"
               className="hidden"
               onChange={(e) => {
-                const title = document.getElementById("slide-title").value || "Slide Deck";
-                handleFileUpload(uploadSlide, "Slides uploaded", title)(e);
+                const title = document.getElementById('slide-title').value || 'Slide Deck';
+                handleFileUpload(uploadSlide, 'Slides uploaded', title)(e);
               }}
             />
           </label>

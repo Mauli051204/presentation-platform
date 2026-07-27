@@ -11,6 +11,7 @@ const ConfirmModal = ({
   isDangerous = true,
   isLoading = false,
   icon: Icon = AlertTriangle,
+  children,
 }) => {
   if (!isOpen) return null;
 
@@ -25,7 +26,10 @@ const ConfirmModal = ({
           <Icon className={`w-7 h-7 ${isDangerous ? 'text-danger' : 'text-primary'}`} />
         </div>
         <h3 className="text-lg font-semibold text-slate-900 mb-2">{title}</h3>
-        <p className="text-sm text-slate-500 mb-6">{description}</p>
+        <p className="text-sm text-slate-500 mb-4">{description}</p>
+
+        {children && <div className="text-left mb-4">{children}</div>}
+
         <div className="flex flex-col sm:flex-row justify-center gap-3">
           <button
             onClick={onClose}

@@ -43,6 +43,8 @@ export const applyToRequirement = async (req, res, next) => {
       existing.coverNote = coverNote || '';
       existing.proposedFee = proposedFee ?? null;
       existing.reviewedAt = null;
+      existing.rejectionReason = '';
+      existing.withdrawReason = '';
       application = await existing.save();
     } else {
       application = await Application.create({
@@ -69,10 +71,18 @@ export const applyToRequirement = async (req, res, next) => {
 
 export const withdrawApplication = async (req, res, next) => {
   try {
+    const { reason } = req.body;
+
     const presenterProfile = await PresenterProfile.findOne({ user: req.user._id });
     if (!presenterProfile) return next(new ApiError(404, 'Presenter profile not found'));
 
-    const application = await Application.findById(req.params.id);
+    const application = await Application.findById(req.params.id)
+      .populate('requirement', 'title')
+      .populate({
+        path: 'college',
+        select: 'user collegeName',
+        populate: { path: 'user', select: 'email name' },
+      });
     if (!application) return next(new ApiError(404, 'Application not found'));
 
     if (application.presenter.toString() !== presenterProfile._id.toString()) {
@@ -85,12 +95,32 @@ export const withdrawApplication = async (req, res, next) => {
     }
 
     application.status = 'withdrawn';
+    application.withdrawReason = reason || '';
     await application.save();
 
-    const requirement = await Requirement.findById(application.requirement);
+    const requirement = await Requirement.findById(
+      application.requirement._id || application.requirement
+    );
     if (requirement && requirement.applicationsCount > 0) {
       requirement.applicationsCount -= 1;
       await requirement.save();
+    }
+
+    if (application.college?.user) {
+      await createNotification(req.app.get('io'), {
+        userId: application.college.user._id,
+        type: 'general',
+        title: 'Presenter withdrew their application',
+        message: reason
+          ? `The presenter withdrew from "${application.requirement?.title}". Reason: ${reason}`
+          : `The presenter withdrew their application for "${application.requirement?.title}".`,
+        meta: {
+          applicationId: application._id,
+          requirementTitle: application.requirement?.title,
+          counterpartyName: req.user.name,
+        },
+        email: { to: application.college.user.email },
+      });
     }
 
     return res
@@ -140,8 +170,7 @@ export const getApplicationsForRequirement = async (req, res, next) => {
     const applications = await Application.find(filter)
       .populate({
         path: 'presenter',
-        select:
-          'headline skills languages ratingsAverage ratingsCount location resume profileImage',
+        select: "headline bio skills languages ratingsAverage ratingsCount location resume profileImage education",
         populate: { path: 'user', select: 'name email' },
       })
       .sort({ createdAt: -1 });
@@ -154,14 +183,18 @@ export const getApplicationsForRequirement = async (req, res, next) => {
 
 export const updateApplicationStatus = async (req, res, next) => {
   try {
+    const { status, reason } = req.body;
+
     const collegeProfile = await CollegeProfile.findOne({ user: req.user._id });
     if (!collegeProfile) return next(new ApiError(404, 'College profile not found'));
 
-    const application = await Application.findById(req.params.id).populate({
-      path: 'presenter',
-      select: 'user',
-      populate: { path: 'user', select: 'email name' },
-    });
+    const application = await Application.findById(req.params.id)
+      .populate('requirement', 'title')
+      .populate({
+        path: 'presenter',
+        select: 'user',
+        populate: { path: 'user', select: 'email name' },
+      });
     if (!application) return next(new ApiError(404, 'Application not found'));
 
     if (application.college.toString() !== collegeProfile._id.toString()) {
@@ -176,8 +209,11 @@ export const updateApplicationStatus = async (req, res, next) => {
       );
     }
 
-    application.status = req.body.status;
+    application.status = status;
     application.reviewedAt = new Date();
+    if (status === 'rejected') {
+      application.rejectionReason = reason || '';
+    }
     await application.save();
 
     const isShortlisted = application.status === 'shortlisted';
@@ -187,8 +223,16 @@ export const updateApplicationStatus = async (req, res, next) => {
       title: isShortlisted ? "You've been shortlisted!" : 'Application update',
       message: isShortlisted
         ? 'A college has shortlisted your application. Check your dashboard for next steps.'
-        : 'A college has reviewed and declined your application this time.',
-      meta: { applicationId: application._id, requirementId: application.requirement },
+        : reason
+          ? `A college declined your application. Reason: ${reason}`
+          : 'A college has reviewed and declined your application this time.',
+      meta: {
+        applicationId: application._id,
+        requirementId: application.requirement?._id,
+        requirementTitle: application.requirement?.title,
+        counterpartyName: collegeProfile.collegeName,
+        counterpartyAvatarUrl: collegeProfile.logo?.url || null,
+      },
       email: { to: application.presenter.user.email },
     });
 

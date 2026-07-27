@@ -5,15 +5,18 @@ import { MessageSquare, XCircle, CalendarDays } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import FilterTabs from '@/components/ui/FilterTabs';
+import ConfirmModal from '@/components/ui/ConfirmModal';
+import TextArea from '@/components/ui/TextArea';
 import { getMyApplications, withdrawApplication } from '../api/applicationApi';
 import { getOrCreateConversation } from '../api/chatApi';
 
 const statusVariant = {
   applied: 'warning',
   shortlisted: 'success',
+  booked: 'primary',
+  completed: 'success',
   rejected: 'danger',
   withdrawn: 'neutral',
-  booked: 'primary',
 };
 
 const statusOptions = [
@@ -21,6 +24,7 @@ const statusOptions = [
   { value: 'applied', label: 'Applied' },
   { value: 'shortlisted', label: 'Shortlisted' },
   { value: 'booked', label: 'Booked' },
+  { value: 'completed', label: 'Completed' },
   { value: 'rejected', label: 'Rejected' },
   { value: 'withdrawn', label: 'Withdrawn' },
 ];
@@ -30,7 +34,9 @@ const MyApplicationsPage = () => {
   const [applications, setApplications] = useState([]);
   const [statusFilter, setStatusFilter] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [withdrawingId, setWithdrawingId] = useState(null);
+  const [withdrawTarget, setWithdrawTarget] = useState(null);
+  const [withdrawReason, setWithdrawReason] = useState('');
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
 
   const load = async () => {
     setIsLoading(true);
@@ -49,16 +55,32 @@ const MyApplicationsPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
 
-  const handleWithdraw = async (applicationId) => {
-    setWithdrawingId(applicationId);
+  const openWithdrawModal = (application) => {
+    setWithdrawTarget(application);
+    setWithdrawReason('');
+  };
+
+  // Optimistic withdraw: flip to "withdrawn" and close the modal instantly;
+  // revert only if the server actually rejects the request.
+  const handleConfirmWithdraw = async () => {
+    const applicationId = withdrawTarget._id;
+    const reason = withdrawReason.trim();
+    const previous = applications;
+
+    setIsWithdrawing(true);
+    setApplications((prev) =>
+      prev.map((a) => (a._id === applicationId ? { ...a, status: 'withdrawn' } : a))
+    );
+    setWithdrawTarget(null);
+
     try {
-      await withdrawApplication(applicationId);
+      await withdrawApplication(applicationId, reason);
       toast.success('Application withdrawn');
-      await load();
     } catch (error) {
+      setApplications(previous);
       toast.error(error.response?.data?.message || 'Failed to withdraw application');
     } finally {
-      setWithdrawingId(null);
+      setIsWithdrawing(false);
     }
   };
 
@@ -110,7 +132,7 @@ const MyApplicationsPage = () => {
                   </div>
                 </div>
                 <div className="flex sm:flex-col gap-3 sm:gap-2 sm:items-end">
-                  {['shortlisted', 'booked'].includes(app.status) && (
+                  {['shortlisted', 'booked', 'completed'].includes(app.status) && (
                     <button
                       onClick={() => handleMessageCollege(app._id)}
                       className="flex items-center gap-1.5 text-sm text-primary font-medium whitespace-nowrap"
@@ -120,12 +142,10 @@ const MyApplicationsPage = () => {
                   )}
                   {['applied', 'shortlisted'].includes(app.status) && (
                     <button
-                      onClick={() => handleWithdraw(app._id)}
-                      disabled={withdrawingId === app._id}
-                      className="flex items-center gap-1.5 text-sm text-danger font-medium hover:opacity-80 disabled:opacity-50 whitespace-nowrap"
+                      onClick={() => openWithdrawModal(app)}
+                      className="flex items-center gap-1.5 text-sm text-danger font-medium hover:opacity-80 whitespace-nowrap"
                     >
-                      <XCircle className="w-4 h-4" />
-                      {withdrawingId === app._id ? 'Withdrawing...' : 'Withdraw'}
+                      <XCircle className="w-4 h-4" /> Withdraw
                     </button>
                   )}
                 </div>
@@ -134,6 +154,30 @@ const MyApplicationsPage = () => {
           ))}
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={!!withdrawTarget}
+        onClose={() => setWithdrawTarget(null)}
+        onConfirm={handleConfirmWithdraw}
+        title="Withdraw this application?"
+        description={
+          <span>
+            The college will be notified. You can optionally share a reason below before confirming.
+          </span>
+        }
+        confirmLabel="Withdraw"
+        isDangerous={true}
+        isLoading={isWithdrawing}
+        icon={XCircle}
+      >
+        <TextArea
+          label="Reason (optional, shared with the college)"
+          rows={3}
+          maxLength={500}
+          value={withdrawReason}
+          onChange={(e) => setWithdrawReason(e.target.value)}
+        />
+      </ConfirmModal>
     </div>
   );
 };

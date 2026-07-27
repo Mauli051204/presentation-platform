@@ -1,9 +1,14 @@
-import { useEffect, useState } from "react";
-import toast from "react-hot-toast";
-import { BellOff, CheckCheck } from "lucide-react";
-import Card from "@/components/ui/Card";
-import { getMyNotifications, markNotificationRead, markAllNotificationsRead } from "../api/notificationApi";
-import { useNotificationCount } from "@/context/NotificationCountContext";
+import { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
+import { BellOff, CheckCheck } from 'lucide-react';
+import Card from '@/components/ui/Card';
+import NotificationCard from '@/components/common/NotificationCard';
+import {
+  getMyNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+} from '../api/notificationApi';
+import { useNotificationCount } from '@/context/NotificationCountContext';
 
 const NotificationsPage = () => {
   const [notifications, setNotifications] = useState([]);
@@ -16,7 +21,7 @@ const NotificationsPage = () => {
       const { data } = await getMyNotifications({ page: 1, limit: 30 });
       setNotifications(data.data);
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to load notifications");
+      toast.error(error.response?.data?.message || 'Failed to load notifications');
     } finally {
       setIsLoading(false);
     }
@@ -34,7 +39,7 @@ const NotificationsPage = () => {
       setNotifications((prev) => prev.map((n) => (n._id === id ? { ...n, isRead: true } : n)));
       if (target && !target.isRead) decrementUnread(1);
     } catch {
-      toast.error("Failed to mark as read");
+      toast.error('Failed to mark as read');
     }
   };
 
@@ -43,9 +48,9 @@ const NotificationsPage = () => {
       await markAllNotificationsRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       resetUnread();
-      toast.success("All notifications marked as read");
+      toast.success('All notifications marked as read');
     } catch {
-      toast.error("Failed to mark all as read");
+      toast.error('Failed to mark all as read');
     }
   };
 
@@ -72,25 +77,7 @@ const NotificationsPage = () => {
       ) : (
         <div className="space-y-2">
           {notifications.map((n) => (
-            <Card key={n._id} className={!n.isRead ? "border-l-4 border-l-primary" : ""}>
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <p className={`text-sm font-medium ${n.isRead ? "text-slate-600" : "text-slate-900"}`}>
-                    {n.title}
-                  </p>
-                  <p className="text-sm text-slate-500 mt-1">{n.message}</p>
-                  <p className="text-xs text-slate-400 mt-2">{new Date(n.createdAt).toLocaleString()}</p>
-                </div>
-                {!n.isRead && (
-                  <button
-                    onClick={() => handleMarkRead(n._id)}
-                    className="text-xs text-primary font-medium whitespace-nowrap shrink-0"
-                  >
-                    Mark read
-                  </button>
-                )}
-              </div>
-            </Card>
+            <NotificationCard key={n._id} notification={n} onMarkRead={handleMarkRead} />
           ))}
         </div>
       )}

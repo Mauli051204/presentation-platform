@@ -41,7 +41,6 @@ const BookingsPage = () => {
   const [reviewTarget, setReviewTarget] = useState(null);
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: "" });
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
-  const [reviewedBookingIds, setReviewedBookingIds] = useState([]);
 
   const load = async () => {
     setIsLoading(true);
@@ -76,22 +75,24 @@ const BookingsPage = () => {
 
   const handleSubmitReview = async (e) => {
     e.preventDefault();
+    const targetId = reviewTarget._id;
+    const previousBookings = bookings;
     setIsSubmittingReview(true);
+    setBookings((prev) => prev.map((b) => (b._id === targetId ? { ...b, hasReviewed: true } : b)));
+    setReviewTarget(null);
+
     try {
       await submitReview({
-        bookingId: reviewTarget._id,
+        bookingId: targetId,
         rating: reviewForm.rating,
         comment: reviewForm.comment,
       });
       toast.success("Review submitted — thank you!");
-      setReviewedBookingIds((prev) => [...prev, reviewTarget._id]);
-      setReviewTarget(null);
     } catch (error) {
       if (error.response?.status === 409) {
         toast.error("You've already reviewed this booking");
-        setReviewedBookingIds((prev) => [...prev, reviewTarget._id]);
-        setReviewTarget(null);
       } else {
+        setBookings(previousBookings);
         toast.error(error.response?.data?.message || "Failed to submit review");
       }
     } finally {
@@ -151,7 +152,7 @@ const BookingsPage = () => {
                   >
                     <MessageSquare className="w-4 h-4" /> Message
                   </button>
-                  {booking.status === "completed" && !reviewedBookingIds.includes(booking._id) && (
+                  {booking.status === "completed" && !booking.hasReviewed && (
                     <button
                       onClick={() => openReviewModal(booking)}
                       className="flex items-center gap-1.5 text-sm bg-primary text-primary-foreground rounded-lg px-3 py-1.5 whitespace-nowrap hover:opacity-90 transition-opacity"

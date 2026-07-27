@@ -11,7 +11,7 @@ export const createReview = async (req, res, next) => {
   try {
     const { bookingId, rating, comment } = req.body;
 
-    const booking = await Booking.findById(bookingId);
+    const booking = await Booking.findById(bookingId).populate('requirement', 'title');
     if (!booking) return next(new ApiError(404, 'Booking not found'));
     if (booking.status !== 'completed') {
       return next(new ApiError(400, 'Reviews can only be left after the booking is completed'));
@@ -60,13 +60,37 @@ export const createReview = async (req, res, next) => {
       'user',
       'email name'
     );
+
+    // Reviewer identity/avatar — who the recipient will see this review as from
+    let reviewerName = req.user.name;
+    let reviewerAvatarUrl = null;
+    if (isCollegeReviewing) {
+      const collegeProfile = await CollegeProfile.findOne({ user: req.user._id }).select(
+        'collegeName logo'
+      );
+      reviewerName = collegeProfile?.collegeName || req.user.name;
+      reviewerAvatarUrl = collegeProfile?.logo?.url || null;
+    } else {
+      const presenterProfile = await PresenterProfile.findOne({ user: req.user._id }).select(
+        'profileImage'
+      );
+      reviewerAvatarUrl = presenterProfile?.profileImage?.url || null;
+    }
+
     if (targetProfileDoc?.user) {
       await createNotification(req.app.get('io'), {
         userId: targetProfileDoc.user._id,
         type: 'review_received',
         title: 'You received a new review',
-        message: `You received a ${rating}-star review${comment ? `: "${comment}"` : '.'}`,
-        meta: { bookingId, reviewId: review._id },
+        message: comment ? `"${comment}"` : `You received a ${rating}-star review.`,
+        meta: {
+          bookingId,
+          reviewId: review._id,
+          rating,
+          requirementTitle: booking.requirement?.title,
+          counterpartyName: reviewerName,
+          counterpartyAvatarUrl: reviewerAvatarUrl,
+        },
         email: { to: targetProfileDoc.user.email },
       });
     }
