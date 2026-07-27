@@ -439,19 +439,19 @@ const checklist = [
         <div className="mt-4">
           {profile.resume?.url && (
             <div className="flex items-center gap-4 mb-3">
-              <button
+              {/* <button
                 onClick={() => viewFile(profile.resume.url)}
                 className="text-sm text-primary font-medium flex items-center gap-1.5"
               >
                 <Eye className="w-4 h-4" /> View Resume
-              </button>
+              </button> */}
               <button
                 onClick={() =>
                   downloadFile(profile.resume.url, `${profile.headline || 'resume'}.pdf`)
                 }
                 className="text-sm text-primary font-medium flex items-center gap-1.5"
               >
-                <Download className="w-4 h-4" /> Download PDF
+                <Download className="w-4 h-4" /> Download Resume
               </button>
             </div>
           )}

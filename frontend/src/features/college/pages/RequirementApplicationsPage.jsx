@@ -286,17 +286,17 @@ const RequirementApplicationsPage = () => {
 
                   {app.presenter?.resume?.url && (
                     <div className="flex items-center gap-4 mt-3 pt-3 border-t border-slate-100">
-                      <button
+                      {/* <button
                         onClick={() => viewFile(app.presenter.resume.url)}
                         className="inline-flex items-center gap-1.5 text-sm text-primary font-medium"
                       >
                         <Eye className="w-4 h-4" /> View Resume
-                      </button>
+                      </button> */}
                       <button
                         onClick={() => handleDownloadResume(app)}
                         className="inline-flex items-center gap-1.5 text-sm text-primary font-medium"
                       >
-                        <Download className="w-4 h-4" /> Download PDF
+                        <Download className="w-4 h-4" /> Download Resume
                       </button>
                     </div>
                   )}

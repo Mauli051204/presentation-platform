@@ -1,16 +1,19 @@
-import { useEffect, useState } from "react";
-import toast from "react-hot-toast";
-import { Star, Trash2, MessageSquareOff } from "lucide-react";
-import Card from "@/components/ui/Card";
-import Badge from "@/components/ui/Badge";
-import Pagination from "@/components/ui/Pagination";
-import { getReviewsModeration, deleteReview } from "../api/adminApi";
+import { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
+import { Star, Trash2, MessageSquareOff } from 'lucide-react';
+import Card from '@/components/ui/Card';
+import Badge from '@/components/ui/Badge';
+import Pagination from '@/components/ui/Pagination';
+import ConfirmModal from '@/components/ui/ConfirmModal';
+import { getReviewsModeration, deleteReview } from '../api/adminApi';
 
 const ReviewsModerationPage = () => {
   const [reviews, setReviews] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
   const [isLoading, setIsLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const load = async (page = 1) => {
     setIsLoading(true);
@@ -19,7 +22,7 @@ const ReviewsModerationPage = () => {
       setReviews(data.data);
       setPagination({ page: data.pagination.page, totalPages: data.pagination.totalPages });
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to load reviews");
+      toast.error(error.response?.data?.message || 'Failed to load reviews');
     } finally {
       setIsLoading(false);
     }
@@ -29,17 +32,28 @@ const ReviewsModerationPage = () => {
     load(1);
   }, []);
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this review? Ratings will be recalculated.")) return;
-    setBusyId(id);
+  const openDeleteModal = (review) => {
+    setDeleteTarget(review);
+  };
+
+  // Optimistic: remove the card from the list immediately on confirm, revert
+  // only if the server actually rejects the deletion.
+  const handleConfirmDelete = async () => {
+    const reviewId = deleteTarget._id;
+    const previous = reviews;
+
+    setIsDeleting(true);
+    setReviews((prev) => prev.filter((r) => r._id !== reviewId));
+    setDeleteTarget(null);
+
     try {
-      await deleteReview(id);
-      toast.success("Review removed");
-      await load(pagination.page);
+      await deleteReview(reviewId);
+      toast.success('Review removed');
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to delete review");
+      setReviews(previous);
+      toast.error(error.response?.data?.message || 'Failed to delete review');
     } finally {
-      setBusyId(null);
+      setIsDeleting(false);
     }
   };
 
@@ -65,7 +79,7 @@ const ReviewsModerationPage = () => {
                       {[1, 2, 3, 4, 5].map((n) => (
                         <Star
                           key={n}
-                          className={`w-4 h-4 ${n <= r.rating ? "text-warning fill-warning" : "text-slate-200"}`}
+                          className={`w-4 h-4 ${n <= r.rating ? 'text-warning fill-warning' : 'text-slate-200'}`}
                         />
                       ))}
                     </div>
@@ -74,24 +88,40 @@ const ReviewsModerationPage = () => {
                   </div>
                   {r.comment && <p className="text-sm text-slate-600 mt-2">{r.comment}</p>}
                   <p className="text-xs text-slate-400 mt-2">
-                    By {r.reviewerUser?.name} ({r.reviewerUser?.email}) ·{" "}
+                    By {r.reviewerUser?.name} ({r.reviewerUser?.email}) ·{' '}
                     {new Date(r.createdAt).toLocaleDateString()}
                   </p>
                 </div>
                 <button
-                  onClick={() => handleDelete(r._id)}
+                  onClick={() => openDeleteModal(r)}
                   disabled={busyId === r._id}
                   className="flex items-center gap-1.5 text-sm text-danger whitespace-nowrap disabled:opacity-50 shrink-0"
                 >
                   <Trash2 className="w-4 h-4" />
-                  {busyId === r._id ? "Removing..." : "Remove"}
+                  Remove
                 </button>
               </div>
             </Card>
           ))}
-          <Pagination page={pagination.page} totalPages={pagination.totalPages} onPageChange={(p) => load(p)} />
+          <Pagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            onPageChange={(p) => load(p)}
+          />
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        title="Delete this review?"
+        description="Ratings will be recalculated for the reviewed profile. This action cannot be undone."
+        confirmLabel="Delete Review"
+        isDangerous={true}
+        isLoading={isDeleting}
+        icon={Trash2}
+      />
     </div>
   );
 };

@@ -145,55 +145,87 @@ const BookingsPage = () => {
     }
   };
 
-  const handlePayNow = async (booking) => {
-    setPayingId(booking._id);
-    try {
-      const scriptLoaded = await loadRazorpayScript();
-      if (!scriptLoaded) {
-        toast.error("Failed to load Razorpay checkout. Check your connection and try again.");
-        return;
-      }
-
-      const { data: orderRes } = await createOrder(booking._id);
-      const { razorpayOrder, razorpayKeyId } = orderRes.data;
-
-      const options = {
-        key: razorpayKeyId,
-        amount: razorpayOrder.amount,
-        currency: razorpayOrder.currency,
-        name: "Presentation Platform",
-        description: booking.requirement?.title,
-        order_id: razorpayOrder.id,
-        handler: async (response) => {
-          try {
-            await verifyPayment({
-              razorpayOrderId: response.razorpay_order_id,
-              razorpayPaymentId: response.razorpay_payment_id,
-              razorpaySignature: response.razorpay_signature,
-            });
-            toast.success("Payment successful — booking confirmed!");
-            await load();
-          } catch (verifyError) {
-            toast.error(verifyError.response?.data?.message || "Payment verification failed");
-          }
-        },
-        modal: {
-          ondismiss: () => {
-            toast("Payment window closed — you can try again anytime before the booking is cancelled", {
-              icon: "ℹ️",
-            });
-          },
-        },
-        theme: { color: "#2563EB" },
-      };
-
-      new window.Razorpay(options).open();
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to start payment");
-    } finally {
-      setPayingId(null);
+const handlePayNow = async (booking) => {
+  setPayingId(booking._id);
+  try {
+    const scriptLoaded = await loadRazorpayScript();
+    if (!scriptLoaded) {
+      toast.error('Failed to load Razorpay checkout. Check your connection and try again.');
+      return;
     }
-  };
+
+    const { data: orderRes } = await createOrder(booking._id);
+    const { razorpayOrder, razorpayKeyId, payment } = orderRes.data;
+
+    // Guard: if the backend response is missing what checkout needs,
+    // fail with a specific message instead of letting the Razorpay SDK
+    // throw an opaque error deep inside new window.Razorpay(...).
+    if (!razorpayKeyId) {
+      console.error('[payment] razorpayKeyId missing from create-order response:', orderRes.data);
+      toast.error("Payment gateway isn't configured correctly (missing key). Contact support.");
+      return;
+    }
+    if (!razorpayOrder?.id && !payment?.razorpayOrderId) {
+      console.error('[payment] No order id available:', orderRes.data);
+      toast.error('Could not create a payment order. Try again in a moment.');
+      return;
+    }
+
+    const options = {
+      key: razorpayKeyId,
+      amount: razorpayOrder ? razorpayOrder.amount : Math.round(payment.amount * 100),
+      currency: razorpayOrder ? razorpayOrder.currency : 'INR',
+      name: 'Presentation Platform',
+      description: booking.requirement?.title,
+      order_id: razorpayOrder ? razorpayOrder.id : payment.razorpayOrderId,
+      handler: async (response) => {
+        try {
+          await verifyPayment({
+            razorpayOrderId: response.razorpay_order_id,
+            razorpayPaymentId: response.razorpay_payment_id,
+            razorpaySignature: response.razorpay_signature,
+          });
+          toast.success('Payment successful — booking confirmed!');
+          await load();
+        } catch (verifyError) {
+          toast.error(verifyError.response?.data?.message || 'Payment verification failed');
+        }
+      },
+      modal: {
+        ondismiss: () => {
+          toast(
+            'Payment window closed — you can try again anytime before the booking is cancelled',
+            {
+              icon: 'ℹ️',
+            }
+          );
+        },
+      },
+      theme: { color: '#2563EB' },
+    };
+
+    try {
+      const razorpayInstance = new window.Razorpay(options);
+      razorpayInstance.open();
+    } catch (sdkError) {
+      console.error('[payment] Razorpay SDK failed to open:', sdkError);
+      toast.error(`Payment gateway error: ${sdkError.message || 'could not open checkout'}`);
+    }
+  } catch (error) {
+    console.error('[payment] create-order request failed:', error);
+    if (error.response) {
+      toast.error(
+        error.response.data?.message || `Payment order failed (status ${error.response.status})`
+      );
+    } else if (error.request) {
+      toast.error('No response from server — check your network or that the backend is reachable.');
+    } else {
+      toast.error(`Failed to start payment: ${error.message}`);
+    }
+  } finally {
+    setPayingId(null);
+  }
+};
 
   const openReviewModal = (booking) => {
     setReviewTarget(booking);
