@@ -1,33 +1,28 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import { Send, MessagesSquare, Search, Check, CheckCheck, ArrowLeft } from 'lucide-react';
-import { getSocket } from '@/services/socket';
-import { listMyConversations, getMessages, markConversationRead } from '../api/chatApi';
-import { getConversationLabel, getOtherParticipant } from '@/utils/conversationLabel';
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import toast from "react-hot-toast";
+import { Send, MessagesSquare, Search, Check, CheckCheck, ArrowLeft } from "lucide-react";
+import { getSocket } from "@/services/socket";
+import { listMyConversations, getMessages, markConversationRead } from "../api/chatApi";
+import { getConversationLabel, getOtherParticipant } from "@/utils/conversationLabel";
 
-const initials = (name = '') =>
-  name
-    .split(' ')
-    .map((w) => w[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
+const initials = (name = "") =>
+  name.split(" ").map((w) => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
 
 const TYPING_IDLE_MS = 2000;
-const SELF_ROLE = 'presenter';
+const SELF_ROLE = "presenter";
 
 const MessagesPage = () => {
   const [searchParams] = useSearchParams();
   const [conversations, setConversations] = useState([]);
-  const [conversationSearch, setConversationSearch] = useState('');
-  const [activeId, setActiveId] = useState(searchParams.get('conversationId') || null);
+  const [conversationSearch, setConversationSearch] = useState("");
+  const [activeId, setActiveId] = useState(searchParams.get("conversationId") || null);
   const [messages, setMessages] = useState([]);
-  const [draft, setDraft] = useState('');
+  const [draft, setDraft] = useState("");
   const [isLoadingConvos, setIsLoadingConvos] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [otherTyping, setOtherTyping] = useState(false);
+  const [otherOnline, setOtherOnline] = useState(false);
   const bottomRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
@@ -56,7 +51,7 @@ const MessagesPage = () => {
         setActiveId(data.data[0]._id);
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to load conversations');
+      toast.error(error.response?.data?.message || "Failed to load conversations");
     } finally {
       setIsLoadingConvos(false);
     }
@@ -67,33 +62,64 @@ const MessagesPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Global presence listeners — react to ANY user coming online/offline,
+  // but only update our badge if it's the person we're currently chatting with.
+  useEffect(() => {
+    const socket = getSocket();
+
+    const handleUserOnline = ({ userId }) => {
+      if (userId === otherParticipantId) setOtherOnline(true);
+    };
+    const handleUserOffline = ({ userId }) => {
+      if (userId === otherParticipantId) setOtherOnline(false);
+    };
+
+    socket.on("user_online", handleUserOnline);
+    socket.on("user_offline", handleUserOffline);
+
+    return () => {
+      socket.off("user_online", handleUserOnline);
+      socket.off("user_offline", handleUserOffline);
+    };
+  }, [otherParticipantId]);
+
   useEffect(() => {
     if (!activeId) return;
 
     const socket = getSocket();
     setIsLoadingMessages(true);
     setOtherTyping(false);
+    setOtherOnline(false);
+
+    // Fetch the CURRENT snapshot immediately on open — the broadcast
+    // listeners above only catch future changes, not the state as it
+    // already stood before this conversation was opened.
+    if (otherParticipantId) {
+      socket.emit("get_online_status", { userId: otherParticipantId }, (response) => {
+        if (response?.success) setOtherOnline(response.isOnline);
+      });
+    }
 
     const loadThread = async () => {
       try {
         const { data } = await getMessages(activeId, { page: 1, limit: 50 });
         setMessages(data.data);
         await markConversationRead(activeId);
-        socket.emit('mark_read', { conversationId: activeId });
+        socket.emit("mark_read", { conversationId: activeId });
       } catch (error) {
-        toast.error(error.response?.data?.message || 'Failed to load messages');
+        toast.error(error.response?.data?.message || "Failed to load messages");
       } finally {
         setIsLoadingMessages(false);
       }
     };
     loadThread();
 
-    socket.emit('join_conversation', { conversationId: activeId });
+    socket.emit("join_conversation", { conversationId: activeId });
 
     const handleNewMessage = (message) => {
       if (message.conversation === activeId) {
         setMessages((prev) => [...prev, message]);
-        socket.emit('mark_read', { conversationId: activeId });
+        socket.emit("mark_read", { conversationId: activeId });
       }
       loadConversations();
     };
@@ -115,22 +141,22 @@ const MessagesPage = () => {
       if (conversationId === activeId && userId === otherParticipantId) setOtherTyping(false);
     };
 
-    socket.on('new_message', handleNewMessage);
-    socket.on('messages_read', handleMessagesRead);
-    socket.on('typing', handleTyping);
-    socket.on('stop_typing', handleStopTyping);
+    socket.on("new_message", handleNewMessage);
+    socket.on("messages_read", handleMessagesRead);
+    socket.on("typing", handleTyping);
+    socket.on("stop_typing", handleStopTyping);
 
     return () => {
-      socket.off('new_message', handleNewMessage);
-      socket.off('messages_read', handleMessagesRead);
-      socket.off('typing', handleTyping);
-      socket.off('stop_typing', handleStopTyping);
+      socket.off("new_message", handleNewMessage);
+      socket.off("messages_read", handleMessagesRead);
+      socket.off("typing", handleTyping);
+      socket.off("stop_typing", handleStopTyping);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId, otherParticipantId]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, otherTyping]);
 
   const handleDraftChange = (e) => {
@@ -138,11 +164,11 @@ const MessagesPage = () => {
     if (!activeId) return;
 
     const socket = getSocket();
-    socket.emit('typing', { conversationId: activeId });
+    socket.emit("typing", { conversationId: activeId });
 
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
-      socket.emit('stop_typing', { conversationId: activeId });
+      socket.emit("stop_typing", { conversationId: activeId });
     }, TYPING_IDLE_MS);
   };
 
@@ -151,15 +177,15 @@ const MessagesPage = () => {
     if (!draft.trim() || !activeId) return;
 
     const socket = getSocket();
-    socket.emit('stop_typing', { conversationId: activeId });
+    socket.emit("stop_typing", { conversationId: activeId });
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
-    socket.emit('send_message', { conversationId: activeId, content: draft.trim() }, (response) => {
+    socket.emit("send_message", { conversationId: activeId, content: draft.trim() }, (response) => {
       if (!response?.success) {
-        toast.error(response?.message || 'Failed to send message');
+        toast.error(response?.message || "Failed to send message");
       }
     });
-    setDraft('');
+    setDraft("");
   };
 
   const activeLabel = getConversationLabel(activeConversation, SELF_ROLE);
@@ -167,10 +193,9 @@ const MessagesPage = () => {
 
   return (
     <div className="flex h-[calc(100vh-100px)] sm:h-[calc(100vh-140px)] bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-      {/* Conversation list — full width on mobile when nothing selected, fixed sidebar on desktop */}
       <div
         className={`${
-          activeId ? 'hidden sm:flex' : 'flex'
+          activeId ? "hidden sm:flex" : "flex"
         } w-full sm:w-80 border-r border-slate-200 flex-col shrink-0`}
       >
         <div className="p-3 border-b border-slate-100 shrink-0">
@@ -194,8 +219,8 @@ const MessagesPage = () => {
               <MessagesSquare className="w-8 h-8 text-slate-300 mx-auto mb-2" />
               <p className="text-sm text-slate-500">
                 {conversations.length === 0
-                  ? 'No conversations yet. Message a college from your Bookings page to start one.'
-                  : 'No conversations match your search.'}
+                  ? "No conversations yet. Message a college from your Bookings page to start one."
+                  : "No conversations match your search."}
               </p>
             </div>
           ) : (
@@ -207,7 +232,7 @@ const MessagesPage = () => {
                   key={c._id}
                   onClick={() => setActiveId(c._id)}
                   className={`w-full flex items-center gap-3 text-left px-4 py-3 border-b border-slate-100 hover:bg-slate-50 transition-colors ${
-                    activeId === c._id ? 'bg-primary/5' : ''
+                    activeId === c._id ? "bg-primary/5" : ""
                   }`}
                 >
                   <div className="w-11 h-11 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-sm font-semibold shrink-0">
@@ -216,15 +241,12 @@ const MessagesPage = () => {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-slate-900 truncate">{label}</p>
                     <p className="text-xs text-slate-500 truncate mt-0.5">
-                      {c.lastMessage || 'No messages yet'}
+                      {c.lastMessage || "No messages yet"}
                     </p>
                   </div>
                   {c.lastMessageAt && (
                     <span className="text-[10px] text-slate-400 shrink-0">
-                      {new Date(c.lastMessageAt).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+                      {new Date(c.lastMessageAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </span>
                   )}
                 </button>
@@ -234,10 +256,7 @@ const MessagesPage = () => {
         </div>
       </div>
 
-      {/* Chat pane — full width on mobile when a conversation IS selected */}
-      <div
-        className={`${activeId ? 'flex' : 'hidden sm:flex'} flex-1 flex-col min-h-0 bg-[#efeae2]`}
-      >
+      <div className={`${activeId ? "flex" : "hidden sm:flex"} flex-1 flex-col min-h-0 bg-[#efeae2]`}>
         {!activeId ? (
           <div className="flex-1 flex items-center justify-center text-slate-400 text-sm bg-white">
             Select a conversation to view messages
@@ -245,18 +264,26 @@ const MessagesPage = () => {
         ) : (
           <>
             <div className="px-3 sm:px-4 py-3 bg-white border-b border-slate-100 flex items-center gap-3 shrink-0">
-              <button
-                onClick={() => setActiveId(null)}
-                className="sm:hidden text-slate-500 shrink-0"
-              >
+              <button onClick={() => setActiveId(null)} className="sm:hidden text-slate-500 shrink-0">
                 <ArrowLeft className="w-5 h-5" />
               </button>
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-xs font-semibold shrink-0">
-                {initials(activeOther?.name)}
+              <div className="relative shrink-0">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-xs font-semibold">
+                  {initials(activeOther?.name)}
+                </div>
+                {otherOnline && (
+                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-success rounded-full ring-2 ring-white" />
+                )}
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-medium text-slate-900 truncate">{activeLabel}</p>
-                {otherTyping && <p className="text-xs text-primary">typing...</p>}
+                {otherTyping ? (
+                  <p className="text-xs text-primary">typing...</p>
+                ) : (
+                  <p className={`text-xs ${otherOnline ? "text-success" : "text-slate-400"}`}>
+                    {otherOnline ? "Online" : "Offline"}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -264,30 +291,24 @@ const MessagesPage = () => {
               {isLoadingMessages ? (
                 <p className="text-sm text-slate-500">Loading messages...</p>
               ) : messages.length === 0 ? (
-                <p className="text-sm text-slate-400 text-center mt-10">
-                  No messages yet — say hello!
-                </p>
+                <p className="text-sm text-slate-400 text-center mt-10">No messages yet — say hello!</p>
               ) : (
                 messages.map((m) => {
-                  const isMine = m.sender?.role === 'presenter';
-                  const isRead =
-                    isMine && otherParticipantId && m.readBy?.includes(otherParticipantId);
+                  const isMine = m.sender?.role === "presenter";
+                  const isRead = isMine && otherParticipantId && m.readBy?.includes(otherParticipantId);
                   return (
                     <div
                       key={m._id}
                       className={`max-w-[80%] sm:max-w-md rounded-lg px-3 py-1.5 text-sm shadow-sm ${
                         isMine
-                          ? 'bg-[#d9fdd3] text-slate-900 ml-auto rounded-tr-none'
-                          : 'bg-white text-slate-900 rounded-tl-none'
+                          ? "bg-[#d9fdd3] text-slate-900 ml-auto rounded-tr-none"
+                          : "bg-white text-slate-900 rounded-tl-none"
                       }`}
                     >
                       <p className="break-words whitespace-pre-wrap">{m.content}</p>
                       <div className="flex items-center justify-end gap-1 mt-0.5">
                         <span className="text-[10px] text-slate-400">
-                          {new Date(m.createdAt).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
+                          {new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                         </span>
                         {isMine &&
                           (isRead ? (
@@ -311,10 +332,7 @@ const MessagesPage = () => {
               )}
               <div ref={bottomRef} />
             </div>
-            <form
-              onSubmit={handleSend}
-              className="bg-white border-t border-slate-200 p-2.5 sm:p-3 flex gap-2 shrink-0"
-            >
+            <form onSubmit={handleSend} className="bg-white border-t border-slate-200 p-2.5 sm:p-3 flex gap-2 shrink-0">
               <input
                 type="text"
                 value={draft}

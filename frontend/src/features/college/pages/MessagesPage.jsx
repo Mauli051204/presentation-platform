@@ -28,6 +28,7 @@ const MessagesPage = () => {
   const [isLoadingConvos, setIsLoadingConvos] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [otherTyping, setOtherTyping] = useState(false);
+  const [otherOnline, setOtherOnline] = useState(false);
   const bottomRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
@@ -68,11 +69,37 @@ const MessagesPage = () => {
   }, []);
 
   useEffect(() => {
+    const socket = getSocket();
+
+    const handleUserOnline = ({ userId }) => {
+      if (userId === otherParticipantId) setOtherOnline(true);
+    };
+    const handleUserOffline = ({ userId }) => {
+      if (userId === otherParticipantId) setOtherOnline(false);
+    };
+
+    socket.on('user_online', handleUserOnline);
+    socket.on('user_offline', handleUserOffline);
+
+    return () => {
+      socket.off('user_online', handleUserOnline);
+      socket.off('user_offline', handleUserOffline);
+    };
+  }, [otherParticipantId]);
+
+  useEffect(() => {
     if (!activeId) return;
 
     const socket = getSocket();
     setIsLoadingMessages(true);
     setOtherTyping(false);
+    setOtherOnline(false);
+
+    if (otherParticipantId) {
+      socket.emit('get_online_status', { userId: otherParticipantId }, (response) => {
+        if (response?.success) setOtherOnline(response.isOnline);
+      });
+    }
 
     const loadThread = async () => {
       try {
@@ -249,12 +276,23 @@ const MessagesPage = () => {
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-xs font-semibold shrink-0">
-                {initials(activeOther?.name)}
+              <div className="relative shrink-0">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-xs font-semibold">
+                  {initials(activeOther?.name)}
+                </div>
+                {otherOnline && (
+                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-success rounded-full ring-2 ring-white" />
+                )}
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-medium text-slate-900 truncate">{activeLabel}</p>
-                {otherTyping && <p className="text-xs text-primary">typing...</p>}
+                {otherTyping ? (
+                  <p className="text-xs text-primary">typing...</p>
+                ) : (
+                  <p className={`text-xs ${otherOnline ? 'text-success' : 'text-slate-400'}`}>
+                    {otherOnline ? 'Online' : 'Offline'}
+                  </p>
+                )}
               </div>
             </div>
 

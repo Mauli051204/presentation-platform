@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Search, MapPin, Star, Filter, Sparkles } from 'lucide-react';
+import { Search, MapPin, Star, Filter } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import TextInput from '@/components/ui/TextInput';
+import FieldAutocomplete from '@/components/ui/FieldAutocomplete';
+import RecentPopularSearches from '@/components/ui/RecentPopularSearches';
 import Pagination from '@/components/ui/Pagination';
 import { searchPresentersPublic } from '../api/publicApi';
 
@@ -28,11 +30,11 @@ const FindPresentersPage = () => {
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchPresenters = async (page = 1) => {
+  const fetchPresenters = async (page = 1, overrideFilters = filters) => {
     setIsLoading(true);
     try {
       const params = { page, limit: 12 };
-      Object.entries(filters).forEach(([key, value]) => {
+      Object.entries(overrideFilters).forEach(([key, value]) => {
         if (value) params[key] = value;
       });
       const { data } = await searchPresentersPublic(params);
@@ -55,6 +57,12 @@ const FindPresentersPage = () => {
     fetchPresenters(1);
   };
 
+  const handleQuickSearch = (keyword) => {
+    const next = { ...filters, keyword };
+    setFilters(next);
+    fetchPresenters(1, next);
+  };
+
   return (
     <div className="bg-slate-50 min-h-screen">
       <div className="bg-white border-b border-slate-200">
@@ -75,33 +83,36 @@ const FindPresentersPage = () => {
             </span>
           }
         >
-          <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <TextInput
-              label="Keyword"
-              placeholder="e.g. AI, Public Speaking"
-              value={filters.keyword}
-              onChange={(e) => setFilters((f) => ({ ...f, keyword: e.target.value }))}
-            />
-            <TextInput
-              label="Skills"
-              placeholder="e.g. AI, Career Guidance"
-              value={filters.skills}
-              onChange={(e) => setFilters((f) => ({ ...f, skills: e.target.value }))}
-            />
-            <TextInput
-              label="City"
-              placeholder="e.g. Trichy"
-              value={filters.city}
-              onChange={(e) => setFilters((f) => ({ ...f, city: e.target.value }))}
-            />
-            <div className="sm:col-span-3">
-              <button
-                type="submit"
-                className="flex items-center gap-2 bg-primary text-primary-foreground rounded-lg px-5 py-2.5 text-sm font-medium hover:opacity-90 transition-opacity"
-              >
-                <Search className="w-4 h-4" /> Search
-              </button>
+          <form onSubmit={handleSearch} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <TextInput
+                label="Keyword"
+                placeholder="e.g. AI, Public Speaking"
+                value={filters.keyword}
+                onChange={(e) => setFilters((f) => ({ ...f, keyword: e.target.value }))}
+              />
+              <FieldAutocomplete
+                label="Skills"
+                autocompleteType="skill"
+                placeholder="e.g. AI, Career Guidance"
+                value={filters.skills}
+                onChange={(v) => setFilters((f) => ({ ...f, skills: v }))}
+              />
+              <FieldAutocomplete
+                label="City"
+                autocompleteType="location"
+                placeholder="e.g. Trichy"
+                value={filters.city}
+                onChange={(v) => setFilters((f) => ({ ...f, city: v }))}
+              />
             </div>
+            <RecentPopularSearches type="presenter" onSelect={handleQuickSearch} />
+            <button
+              type="submit"
+              className="flex items-center gap-2 bg-primary text-primary-foreground rounded-lg px-5 py-2.5 text-sm font-medium hover:opacity-90 transition-opacity"
+            >
+              <Search className="w-4 h-4" /> Search
+            </button>
           </form>
         </Card>
 
@@ -111,7 +122,6 @@ const FindPresentersPage = () => {
           </div>
         ) : presenters.length === 0 ? (
           <Card className="text-center py-12">
-            <Sparkles className="w-8 h-8 text-slate-300 mx-auto mb-2" />
             <p className="text-slate-500 text-sm">No presenters match your search yet.</p>
           </Card>
         ) : (

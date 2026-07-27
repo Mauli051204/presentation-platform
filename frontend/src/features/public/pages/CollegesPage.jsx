@@ -7,6 +7,8 @@ import Badge from '@/components/ui/Badge';
 import TextInput from '@/components/ui/TextInput';
 import Pagination from '@/components/ui/Pagination';
 import { searchCollegesPublic } from '../api/publicApi';
+import FieldAutocomplete from "@/components/ui/FieldAutocomplete";
+import RecentPopularSearches from "@/components/ui/RecentPopularSearches";
 
 const CollegesPage = () => {
   const [filters, setFilters] = useState({ keyword: '', city: '' });
@@ -59,27 +61,36 @@ const CollegesPage = () => {
             </span>
           }
         >
-          <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <TextInput
-              label="Keyword"
-              placeholder="College name"
-              value={filters.keyword}
-              onChange={(e) => setFilters((f) => ({ ...f, keyword: e.target.value }))}
-            />
-            <TextInput
-              label="City"
-              placeholder="e.g. Trichy"
-              value={filters.city}
-              onChange={(e) => setFilters((f) => ({ ...f, city: e.target.value }))}
-            />
-            <div className="sm:col-span-2">
-              <button
-                type="submit"
-                className="flex items-center gap-2 bg-primary text-primary-foreground rounded-lg px-5 py-2.5 text-sm font-medium hover:opacity-90 transition-opacity"
-              >
-                <Search className="w-4 h-4" /> Search
-              </button>
+          <form onSubmit={handleSearch} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FieldAutocomplete
+                label="Keyword"
+                autocompleteType="requirement"
+                placeholder="College name"
+                value={filters.keyword}
+                onChange={(v) => setFilters((f) => ({ ...f, keyword: v }))}
+              />
+              <FieldAutocomplete
+                label="City"
+                autocompleteType="location"
+                placeholder="e.g. Trichy"
+                value={filters.city}
+                onChange={(v) => setFilters((f) => ({ ...f, city: v }))}
+              />
             </div>
+            <RecentPopularSearches
+              type="college"
+              onSelect={(kw) => {
+                setFilters((f) => ({ ...f, keyword: kw }));
+                fetchColleges(1, { ...filters, keyword: kw });
+              }}
+            />
+            <button
+              type="submit"
+              className="flex items-center gap-2 bg-primary text-primary-foreground rounded-lg px-5 py-2.5 text-sm font-medium hover:opacity-90 transition-opacity"
+            >
+              <Search className="w-4 h-4" /> Search
+            </button>
           </form>
         </Card>
 

@@ -26,6 +26,14 @@ export const initSockets = (io) => {
       socket.broadcast.emit('user_online', { userId });
     }
 
+    // On-demand presence check — used when a chat UI opens a conversation
+    // and needs to know the OTHER participant's current online status
+    // immediately, rather than waiting for the next broadcast event (which
+    // only fires on state *changes*, not on request).
+    socket.on('get_online_status', ({ userId: targetUserId }, callback) => {
+      callback?.({ success: true, isOnline: isUserOnline(targetUserId) });
+    });
+
     socket.on('join_conversation', async ({ conversationId }, callback) => {
       try {
         const conversation = await Conversation.findById(conversationId);

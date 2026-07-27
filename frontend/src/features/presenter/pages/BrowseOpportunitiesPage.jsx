@@ -9,6 +9,8 @@ import Select from '@/components/ui/Select';
 import Pagination from '@/components/ui/Pagination';
 import { searchRequirements } from '../api/requirementApi';
 import { applyToRequirement, getMyApplications } from '../api/applicationApi';
+import FieldAutocomplete from '@/components/ui/FieldAutocomplete';
+import RecentPopularSearches from '@/components/ui/RecentPopularSearches';
 
 const emptyFilters = {
   keyword: '',
@@ -128,17 +130,19 @@ const BrowseOpportunitiesPage = () => {
           onSubmit={handleSearch}
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
         >
-          <TextInput
+          <FieldAutocomplete
             label="Keyword"
+            autocompleteType="requirement"
             placeholder="e.g. AI, Career Guidance"
             value={filters.keyword}
-            onChange={(e) => setFilters((f) => ({ ...f, keyword: e.target.value }))}
+            onChange={(v) => setFilters((f) => ({ ...f, keyword: v }))}
           />
-          <TextInput
+          <FieldAutocomplete
             label="City"
+            autocompleteType="location"
             placeholder="e.g. Trichy"
             value={filters.city}
-            onChange={(e) => setFilters((f) => ({ ...f, city: e.target.value }))}
+            onChange={(v) => setFilters((f) => ({ ...f, city: v }))}
           />
           <Select
             label="Presentation Type"

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, Link, NavLink } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Menu,
   X,
@@ -13,17 +14,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-
-const navLinks = [
-  { path: '/', label: 'Home', exact: true },
-  { path: '/find-presenters', label: 'Find Presenters' },
-  { path: '/find-opportunities', label: 'Find Opportunities' },
-  { path: '/colleges', label: 'Colleges' },
-  { path: '/how-it-works', label: 'How It Works' },
-  { path: '/pricing', label: 'Pricing' },
-  { path: '/about', label: 'About' },
-  { path: '/contact', label: 'Contact' },
-];
+import LanguageSwitcher from '@/components/common/LanguageSwitcher';
 
 const roleToDashboard = {
   college: '/college/dashboard',
@@ -47,12 +38,24 @@ const initials = (name = '') =>
     .toUpperCase();
 
 const PublicNavbar = () => {
+  const { t } = useTranslation();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const profileMenuRef = useRef(null);
+
+  const navLinks = [
+    { path: '/', label: t('nav.home'), exact: true },
+    { path: '/find-presenters', label: t('nav.findPresenters') },
+    { path: '/find-opportunities', label: t('nav.findOpportunities') },
+    { path: '/colleges', label: t('nav.colleges') },
+    { path: '/how-it-works', label: t('nav.howItWorks') },
+    { path: '/pricing', label: t('nav.pricing') },
+    { path: '/about', label: t('nav.about') },
+    { path: '/contact', label: t('nav.contact') },
+  ];
 
   useEffect(() => {
     document.body.style.overflow = isOpen ? 'hidden' : '';
@@ -85,9 +88,6 @@ const PublicNavbar = () => {
     navigate('/');
   };
 
-  // Explicit navigate() call (not a plain <Link>/<a>) guarantees this always
-  // stays in the current tab regardless of browser/extension quirks — no
-  // target="_blank" involved anywhere in this flow.
   const handleGoToDashboard = () => {
     setIsProfileMenuOpen(false);
     setIsOpen(false);
@@ -96,7 +96,7 @@ const PublicNavbar = () => {
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 h-16 flex items-center gap-3 sm:gap-6">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 h-16 flex items-center gap-3 sm:gap-4 min-w-0">
         <button
           onClick={() => setIsOpen(true)}
           className="lg:hidden text-slate-600 shrink-0 -ml-1 p-1"
@@ -106,20 +106,28 @@ const PublicNavbar = () => {
         </button>
 
         <Link to="/" className="flex items-center gap-2 shrink-0">
-          <img src="/logo-mark.png" alt="Presentation Platform" className="w-9 h-9 object-contain" />
-          <span className="text-lg font-semibold text-slate-900 hidden xl:inline">
-            Presentation Platform
+          <img
+            src="/logo-mark.png"
+            alt="Presentation Platform"
+            className="w-9 h-9 object-contain"
+          />
+          <span className="text-lg font-semibold text-slate-900 hidden xl:inline whitespace-nowrap">
+            {t('app.name')}
           </span>
         </Link>
 
-        <nav className="hidden lg:flex items-center gap-1 shrink-0">
+        {/* min-w-0 lets this flex child shrink below its content size, and
+            overflow-x-auto contains any remaining overflow WITHIN this row
+            only — never on the header, so it can never clip the dropdowns
+            that live outside this element. */}
+        <nav className="hidden lg:flex items-center gap-1 min-w-0 overflow-x-auto scrollbar-hide">
           {navLinks.slice(0, 5).map((link) => (
             <NavLink
               key={link.path}
               to={link.path}
               end={link.exact}
               className={({ isActive }) =>
-                `px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${
+                `px-2.5 py-2 rounded-md text-sm font-medium whitespace-nowrap shrink-0 transition-colors ${
                   isActive
                     ? 'text-primary bg-primary/5'
                     : 'text-slate-600 hover:text-primary hover:bg-slate-50'
@@ -131,20 +139,25 @@ const PublicNavbar = () => {
           ))}
         </nav>
 
-        <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-md ml-auto">
+        <form
+          onSubmit={handleSearch}
+          className="hidden md:flex flex-1 min-w-[100px] max-w-md ml-auto"
+        >
           <div className="relative w-full">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
-              placeholder="Search jobs here"
+              placeholder={t('search.placeholder')}
               className="w-full rounded-full border border-slate-200 bg-slate-50 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:bg-white transition-colors"
             />
           </div>
         </form>
 
-        <div className="flex items-center gap-3 sm:gap-4 shrink-0 ml-auto md:ml-0">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-auto md:ml-0">
+          <LanguageSwitcher />
+
           {user && (
             <Link
               to={roleToNotifications[user.role] || '/'}
@@ -164,10 +177,10 @@ const PublicNavbar = () => {
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-xs font-semibold shrink-0">
                   {initials(user.name)}
                 </div>
-                <span className="hidden sm:inline text-sm font-medium text-slate-700 max-w-[100px] truncate">
+                <span className="hidden xl:inline text-sm font-medium text-slate-700 max-w-[100px] truncate">
                   {user.name}
                 </span>
-                <ChevronDown className="hidden sm:inline w-3.5 h-3.5 text-slate-400" />
+                <ChevronDown className="hidden xl:inline w-3.5 h-3.5 text-slate-400" />
               </button>
 
               {isProfileMenuOpen && (
@@ -180,30 +193,30 @@ const PublicNavbar = () => {
                     onClick={handleGoToDashboard}
                     className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
                   >
-                    <LayoutDashboard className="w-4 h-4 text-slate-400" /> Go to Dashboard
+                    <LayoutDashboard className="w-4 h-4 text-slate-400" /> {t('nav.goToDashboard')}
                   </button>
                   <button
                     onClick={handleLogout}
                     className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-danger hover:bg-slate-50"
                   >
-                    <LogOut className="w-4 h-4" /> Log out
+                    <LogOut className="w-4 h-4" /> {t('nav.logout')}
                   </button>
                 </div>
               )}
             </div>
           ) : (
-            <div className="hidden lg:flex items-center gap-3">
+            <div className="hidden lg:flex items-center gap-2">
               <Link
                 to="/login"
-                className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-primary transition-colors"
+                className="px-3 py-2 text-sm font-medium text-slate-600 hover:text-primary transition-colors whitespace-nowrap"
               >
-                Log in
+                {t('nav.login')}
               </Link>
               <Link
                 to="/register"
-                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
+                className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity whitespace-nowrap"
               >
-                Register
+                {t('nav.register')}
               </Link>
             </div>
           )}
@@ -223,15 +236,12 @@ const PublicNavbar = () => {
             type="text"
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
-            placeholder="Search jobs here"
+            placeholder={t('search.placeholder')}
             className="w-full rounded-full border border-slate-200 bg-slate-50 pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:bg-white transition-colors"
           />
         </form>
       </div>
 
-      {/* Rendered via portal to document.body — escapes the header's
-          backdrop-blur containing block, so `fixed inset-0` here correctly
-          covers the entire viewport instead of just the header's box. */}
       {isOpen &&
         createPortal(
           <div className="fixed inset-0 z-[100] lg:hidden">
@@ -242,12 +252,15 @@ const PublicNavbar = () => {
             <div className="fixed inset-y-0 left-0 h-full w-72 max-w-[85vw] bg-white shadow-2xl flex flex-col">
               <div className="h-16 shrink-0 flex items-center justify-between px-4 border-b border-slate-100">
                 <span className="text-sm font-semibold text-slate-900">Menu</span>
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="text-slate-400 hover:text-slate-600"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <LanguageSwitcher />
+                  <button
+                    onClick={() => setIsOpen(false)}
+                    className="text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
               {user && (
@@ -287,7 +300,8 @@ const PublicNavbar = () => {
                       onClick={handleGoToDashboard}
                       className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50"
                     >
-                      <LayoutDashboard className="w-4 h-4 text-slate-400" /> Go to Dashboard
+                      <LayoutDashboard className="w-4 h-4 text-slate-400" />{' '}
+                      {t('nav.goToDashboard')}
                     </button>
                   </>
                 )}
@@ -299,7 +313,7 @@ const PublicNavbar = () => {
                     onClick={handleLogout}
                     className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-danger/30 text-sm font-medium text-danger"
                   >
-                    <LogOut className="w-4 h-4" /> Log out
+                    <LogOut className="w-4 h-4" /> {t('nav.logout')}
                   </button>
                 ) : (
                   <>
@@ -308,14 +322,14 @@ const PublicNavbar = () => {
                       onClick={() => setIsOpen(false)}
                       className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-slate-300 text-sm font-medium text-slate-700"
                     >
-                      <User className="w-4 h-4" /> Log in
+                      <User className="w-4 h-4" /> {t('nav.login')}
                     </Link>
                     <Link
                       to="/register"
                       onClick={() => setIsOpen(false)}
                       className="block text-center px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
                     >
-                      Register
+                      {t('nav.register')}
                     </Link>
                   </>
                 )}
