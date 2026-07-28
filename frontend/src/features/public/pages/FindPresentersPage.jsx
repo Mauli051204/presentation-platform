@@ -128,7 +128,8 @@ const FindPresentersPage = () => {
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {presenters.map((p) => (
-                <Card key={p._id} className="flex flex-col hover:shadow-md transition-shadow">
+              <Link key={p._id} to={`/presenters/${p._id}`} className="block">
+                <Card className="flex flex-col hover:shadow-md transition-shadow cursor-pointer">
                   <div className="flex items-center gap-3 mb-3">
                     {p.profileImage?.url ? (
                       <img
@@ -168,6 +169,7 @@ const FindPresentersPage = () => {
                     )}
                   </div>
                 </Card>
+              </Link>
               ))}
             </div>
             <Pagination

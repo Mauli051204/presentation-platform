@@ -161,74 +161,94 @@ const BookingsPage = () => {
     }
   };
 
-  const handlePayNow = async (booking) => {
-    // Extra guard: if this card's local state has already moved on from
-    // pending_payment (e.g. cancelled optimistically a moment ago), don't
-    // even attempt the call — refresh instead of hitting a stale button.
-    if (booking.status !== "pending_payment") {
-      toast.error("This booking is no longer awaiting payment.");
-      await load();
+const handlePayNow = async (booking) => {
+  if (booking.status !== 'pending_payment') {
+    toast.error('This booking is no longer awaiting payment.');
+    await load();
+    return;
+  }
+
+  setPayingId(booking._id);
+  try {
+    const scriptLoaded = await loadRazorpayScript();
+    if (!scriptLoaded) {
+      toast.error('Failed to load Razorpay checkout. Check your connection and try again.');
       return;
     }
 
-    setPayingId(booking._id);
-    try {
-      const scriptLoaded = await loadRazorpayScript();
-      if (!scriptLoaded) {
-        toast.error("Failed to load Razorpay checkout. Check your connection and try again.");
-        return;
-      }
+    const { data: orderRes } = await createOrder(booking._id);
+    const { razorpayOrder, razorpayKeyId, payment } = orderRes.data;
 
-      const { data: orderRes } = await createOrder(booking._id);
-      const { razorpayOrder, razorpayKeyId, payment } = orderRes.data;
-
-      if (!razorpayKeyId) {
-        toast.error("Payment gateway isn't configured correctly (missing key). Contact support.");
-        return;
-      }
-      if (!razorpayOrder?.id && !payment?.razorpayOrderId) {
-        toast.error("Could not create a payment order. Try again in a moment.");
-        return;
-      }
-
-      const options = {
-        key: razorpayKeyId,
-        amount: razorpayOrder ? razorpayOrder.amount : Math.round(payment.amount * 100),
-        currency: razorpayOrder ? razorpayOrder.currency : "INR",
-        name: "Presentation Platform",
-        description: booking.requirement?.title,
-        order_id: razorpayOrder ? razorpayOrder.id : payment.razorpayOrderId,
-        handler: async (response) => {
-          try {
-            await verifyPayment({
-              razorpayOrderId: response.razorpay_order_id,
-              razorpayPaymentId: response.razorpay_payment_id,
-              razorpaySignature: response.razorpay_signature,
-            });
-            toast.success("Payment successful — booking confirmed!");
-            await load();
-          } catch (verifyError) {
-            toast.error(verifyError.response?.data?.message || "Payment verification failed");
-          }
-        },
-        modal: {
-          ondismiss: () => {
-            toast("Payment window closed — you can try again anytime before the booking is cancelled", {
-              icon: "ℹ️",
-            });
-          },
-        },
-        theme: { color: "#2563EB" },
-      };
-
-      new window.Razorpay(options).open();
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to start payment");
-      await load();
-    } finally {
-      setPayingId(null);
+    if (!razorpayKeyId) {
+      toast.error("Payment gateway isn't configured correctly (missing key). Contact support.");
+      return;
     }
-  };
+    if (!razorpayOrder?.id && !payment?.razorpayOrderId) {
+      toast.error('Could not create a payment order. Try again in a moment.');
+      return;
+    }
+
+    const options = {
+      key: razorpayKeyId,
+      amount: razorpayOrder ? razorpayOrder.amount : Math.round(payment.amount * 100),
+      currency: razorpayOrder ? razorpayOrder.currency : 'INR',
+      name: 'Presentation Platform',
+      description: booking.requirement?.title,
+      order_id: razorpayOrder ? razorpayOrder.id : payment.razorpayOrderId,
+      // Mobile-specific: some banks/UPI apps need a full-page redirect
+      // rather than the popup/iframe flow, which certain mobile browsers
+      // (especially in-app webviews) block or silently fail on.
+      // This tells Checkout to prefer that path when the device needs it.
+      prefill: {},
+      handler: async (response) => {
+        try {
+          await verifyPayment({
+            razorpayOrderId: response.razorpay_order_id,
+            razorpayPaymentId: response.razorpay_payment_id,
+            razorpaySignature: response.razorpay_signature,
+          });
+          toast.success('Payment successful — booking confirmed!');
+          await load();
+        } catch (verifyError) {
+          toast.error(verifyError.response?.data?.message || 'Payment verification failed');
+        }
+      },
+      modal: {
+        ondismiss: () => {
+          toast(
+            'Payment window closed — you can try again anytime before the booking is cancelled',
+            {
+              icon: 'ℹ️',
+            }
+          );
+        },
+      },
+      theme: { color: '#2563EB' },
+    };
+
+    const razorpayInstance = new window.Razorpay(options);
+
+    // THIS is the missing piece — without listening for payment.failed,
+    // you never see WHY Razorpay rejected it (bank decline reason, wrong
+    // OTP, insufficient funds, blocked card, network issue, etc.). Now
+    // the real reason surfaces as a toast and in the console.
+    razorpayInstance.on('payment.failed', (response) => {
+      const err = response.error || {};
+      console.error('[razorpay] payment.failed:', err);
+      toast.error(
+        `Payment failed: ${err.description || err.reason || 'Bank/method declined the transaction'}`,
+        { duration: 6000 }
+      );
+    });
+
+    razorpayInstance.open();
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Failed to start payment');
+    await load();
+  } finally {
+    setPayingId(null);
+  }
+};
 
   const openReviewModal = (booking) => {
     setReviewTarget(booking);

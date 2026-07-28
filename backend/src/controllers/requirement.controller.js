@@ -170,25 +170,27 @@ export const listRequirements = async (req, res, next) => {
       dateFrom,
       dateTo,
       sortBy,
+      college,
     } = req.query;
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const limit = Math.min(parseInt(req.query.limit, 10) || 10, 50);
     const skip = (page - 1) * limit;
 
-    const filter = { status: 'active' };
+    const filter = { status: "active" };
 
+    if (college) filter.college = college;
     if (keyword) filter.$text = { $search: keyword };
     if (skills) {
-      const skillList = skills.split(',').map((s) => s.trim());
-      filter.requiredSkills = { $in: skillList.map((s) => new RegExp(s, 'i')) };
+      const skillList = skills.split(",").map((s) => s.trim());
+      filter.requiredSkills = { $in: skillList.map((s) => new RegExp(s, "i")) };
     }
     if (languages) {
-      const langList = languages.split(',').map((l) => l.trim());
-      filter.requiredLanguages = { $in: langList.map((l) => new RegExp(l, 'i')) };
+      const langList = languages.split(",").map((l) => l.trim());
+      filter.requiredLanguages = { $in: langList.map((l) => new RegExp(l, "i")) };
     }
-    if (city) filter['location.city'] = new RegExp(city, 'i');
+    if (city) filter["location.city"] = new RegExp(city, "i");
     if (presentationType) filter.presentationType = presentationType;
-    if (department) filter.department = new RegExp(department, 'i');
+    if (department) filter.department = new RegExp(department, "i");
     if (budgetMin || budgetMax) {
       filter.budgetMax = filter.budgetMax || {};
       if (budgetMin) filter.budgetMax.$gte = Number(budgetMin);
@@ -201,13 +203,13 @@ export const listRequirements = async (req, res, next) => {
     }
 
     let sort = { eventDate: 1 };
-    if (sortBy === 'newest') sort = { createdAt: -1 };
-    if (sortBy === 'budgetHigh') sort = { budgetMax: -1 };
-    if (keyword) sort = { score: { $meta: 'textScore' } };
+    if (sortBy === "newest") sort = { createdAt: -1 };
+    if (sortBy === "budgetHigh") sort = { budgetMax: -1 };
+    if (keyword) sort = { score: { $meta: "textScore" } };
 
     const [requirements, total] = await Promise.all([
-      Requirement.find(filter, keyword ? { score: { $meta: 'textScore' } } : {})
-        .populate('college', 'collegeName logo address')
+      Requirement.find(filter, keyword ? { score: { $meta: "textScore" } } : {})
+        .populate("college", "collegeName logo address")
         .skip(skip)
         .limit(limit)
         .sort(sort),
@@ -215,11 +217,11 @@ export const listRequirements = async (req, res, next) => {
     ]);
 
     if (keyword) {
-      await logSearch({ userId: req.user?._id || null, query: keyword, type: 'requirement' });
+      await logSearch({ userId: req.user?._id || null, query: keyword, type: "requirement" });
     }
 
     return res.status(200).json(
-      new ApiResponse(200, requirements, 'Active requirements fetched', {
+      new ApiResponse(200, requirements, "Active requirements fetched", {
         page,
         limit,
         total,

@@ -38,7 +38,7 @@ const ContactPage = () => {
               </div>
               <div>
                 <p className="text-sm font-medium text-slate-900">Email</p>
-                <p className="text-sm text-slate-500">hello@presentationplatform.com</p>
+                <p className="text-sm text-slate-500">hello@presentation.com</p>
               </div>
             </div>
             <div className="flex items-start gap-3">

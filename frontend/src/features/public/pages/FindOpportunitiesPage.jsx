@@ -123,27 +123,29 @@ const FindOpportunitiesPage = () => {
           <>
             <div className="space-y-4">
               {requirements.map((req) => (
-                <Card key={req._id} className="hover:shadow-md transition-shadow">
-                  <h3 className="text-base font-semibold text-slate-900">{req.title}</h3>
-                  <p className="text-sm text-slate-500 mt-1">{req.college?.collegeName}</p>
-                  <p className="text-sm text-slate-600 mt-2 line-clamp-2">{req.description}</p>
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    <Badge variant="neutral">{req.presentationType}</Badge>
-                    {req.location?.city && (
-                      <Badge variant="neutral">
-                        <MapPin className="w-3 h-3" /> {req.location.city}
+                <Link key={req._id} to={`/opportunities/${req._id}`} className="block">
+                  <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                    <h3 className="text-base font-semibold text-slate-900">{req.title}</h3>
+                    <p className="text-sm text-slate-500 mt-1">{req.college?.collegeName}</p>
+                    <p className="text-sm text-slate-600 mt-2 line-clamp-2">{req.description}</p>
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      <Badge variant="neutral">{req.presentationType}</Badge>
+                      {req.location?.city && (
+                        <Badge variant="neutral">
+                          <MapPin className="w-3 h-3" /> {req.location.city}
+                        </Badge>
+                      )}
+                      <Badge variant="success">
+                        <IndianRupee className="w-3 h-3" />{' '}
+                        {formatBudget(req.budgetMin, req.budgetMax)}
                       </Badge>
-                    )}
-                    <Badge variant="success">
-                      <IndianRupee className="w-3 h-3" />{' '}
-                      {formatBudget(req.budgetMin, req.budgetMax)}
-                    </Badge>
-                    <Badge variant="neutral">
-                      <CalendarDays className="w-3 h-3" />{' '}
-                      {new Date(req.eventDate).toLocaleDateString()}
-                    </Badge>
-                  </div>
-                </Card>
+                      <Badge variant="neutral">
+                        <CalendarDays className="w-3 h-3" />{' '}
+                        {new Date(req.eventDate).toLocaleDateString()}
+                      </Badge>
+                    </div>
+                  </Card>
+                </Link>
               ))}
             </div>
             <Pagination

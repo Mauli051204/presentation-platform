@@ -107,33 +107,35 @@ const CollegesPage = () => {
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {colleges.map((c) => (
-                <Card key={c._id} className="hover:shadow-md transition-shadow">
-                  <div className="flex items-center gap-3 mb-3">
-                    {c.logo?.url ? (
-                      <img src={c.logo.url} alt="" className="w-12 h-12 rounded-lg object-cover" />
-                    ) : (
-                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                        <Building2 className="w-5 h-5 text-white" />
-                      </div>
-                    )}
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-900 truncate">
-                        {c.collegeName}
-                      </p>
-                      {c.address?.city && (
-                        <p className="flex items-center gap-1 text-xs text-slate-500 truncate">
-                          <MapPin className="w-3 h-3" /> {c.address.city}, {c.address.state}
-                        </p>
+                <Link key={c._id} to={`/colleges/${c._id}`} className="block">
+                   <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                    <div className="flex items-center gap-3 mb-3">
+                      {c.logo?.url ? (
+                        <img src={c.logo.url} alt="" className="w-12 h-12 rounded-lg object-cover" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+                          <Building2 className="w-5 h-5 text-white" />
+                        </div>
                       )}
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-900 truncate">
+                          {c.collegeName}
+                        </p>
+                        {c.address?.city && (
+                          <p className="flex items-center gap-1 text-xs text-slate-500 truncate">
+                            <MapPin className="w-3 h-3" /> {c.address.city}, {c.address.state}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <p className="text-sm text-slate-600 line-clamp-2">{c.description}</p>
-                  {c.isVerified && (
-                    <span className="inline-flex items-center gap-1 text-xs text-success mt-3">
-                      <ShieldCheck className="w-3.5 h-3.5" /> Verified
-                    </span>
-                  )}
-                </Card>
+                    <p className="text-sm text-slate-600 line-clamp-2">{c.description}</p>
+                    {c.isVerified && (
+                      <span className="inline-flex items-center gap-1 text-xs text-success mt-3">
+                        <ShieldCheck className="w-3.5 h-3.5" /> Verified
+                      </span>
+                    )}
+                  </Card>
+                </Link>
               ))}
             </div>
             <Pagination

@@ -56,6 +56,10 @@ import ReviewsModerationPage from '@/features/admin/pages/ReviewsModerationPage'
 import AdminNotificationsPage from '@/features/admin/pages/NotificationsPage';
 import CommissionSettingsPage from '@/features/admin/pages/CommissionSettingsPage';
 
+import PresenterDetailPage from "@/features/public/pages/PresenterDetailPage";
+import CollegeDetailPage from "@/features/public/pages/CollegeDetailPage";
+import OpportunityDetailPage from "@/features/public/pages/OpportunityDetailPage";
+
 const presenterNavItems = [
   { path: '/presenter/dashboard', label: 'Dashboard', exact: true, icon: LayoutDashboard },
   { path: '/presenter/profile', label: 'My Profile', icon: UserRound },
@@ -95,6 +99,9 @@ const router = createBrowserRouter([
       { path: '/pricing', element: <PricingPage /> },
       { path: '/about', element: <AboutPage /> },
       { path: '/contact', element: <ContactPage /> },
+      { path: '/presenters/:id', element: <PresenterDetailPage /> },
+      { path: '/colleges/:id', element: <CollegeDetailPage /> },
+      { path: '/opportunities/:id', element: <OpportunityDetailPage /> },
     ],
   },
   { path: '/login', element: <LoginPage /> },
