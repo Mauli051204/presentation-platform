@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { useEffect, useState } from "react";
+import { useParams, Link } from "react-router-dom";
+import toast from "react-hot-toast";
 import {
   MapPin,
   Star,
@@ -11,29 +11,44 @@ import {
   Video as VideoIcon,
   Award,
   ArrowLeft,
-} from 'lucide-react';
-import Card from '@/components/ui/Card';
-import Badge from '@/components/ui/Badge';
-import ShareButton from '@/components/common/ShareButton';
-import PublicReviewsList from '@/components/common/PublicReviewsList';
-import { getPresenterPublic, getReviewsForPresenterPublic } from '../api/publicApi';
-import { viewFile } from '@/utils/viewFile';
+  ShieldCheck,
+  ThumbsUp,
+} from "lucide-react";
+import Card from "@/components/ui/Card";
+import Badge from "@/components/ui/Badge";
+import ShareButton from "@/components/common/ShareButton";
+import PublicReviewsList from "@/components/common/PublicReviewsList";
+import { useAuth } from "@/context/AuthContext";
+import { getPresenterPublic, getReviewsForPresenterPublic } from "../api/publicApi";
+import { getEndorsements, toggleEndorsement } from "../api/endorsementApi";
+import { viewFile } from "@/utils/viewFile";
 
-const initials = (name = '') =>
-  name
-    .split(' ')
-    .map((w) => w[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
+const initials = (name = "") =>
+  name.split(" ").map((w) => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
 
 const PresenterDetailPage = () => {
   const { id } = useParams();
+  const { user } = useAuth();
   const [presenter, setPresenter] = useState(null);
   const [reviews, setReviews] = useState([]);
+  const [endorsements, setEndorsements] = useState([]);
+  const [endorsedByMe, setEndorsedByMe] = useState([]);
+  const [endorsingSkill, setEndorsingSkill] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+
+  const isOwnProfile = user && presenter?.user?._id === user.id;
+  const canEndorse = user && !isOwnProfile && ["presenter", "college"].includes(user.role);
+
+  const loadEndorsements = async () => {
+    try {
+      const { data } = await getEndorsements(id);
+      setEndorsements(data.data.skills || []);
+      setEndorsedByMe(data.data.endorsedByMe || []);
+    } catch {
+      // non-fatal
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -45,7 +60,7 @@ const PresenterDetailPage = () => {
         if (error.response?.status === 404) {
           setNotFound(true);
         } else {
-          toast.error('Failed to load presenter profile');
+          toast.error("Failed to load presenter profile");
         }
       }
       try {
@@ -53,12 +68,41 @@ const PresenterDetailPage = () => {
         setReviews(data.data);
       } catch {
         // non-fatal
-      } finally {
-        setIsLoading(false);
       }
+      await loadEndorsements();
+      setIsLoading(false);
     };
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  const handleEndorse = async (skill) => {
+    if (!canEndorse) {
+      toast("Log in as a presenter or college to endorse this skill", { icon: "ℹ️" });
+      return;
+    }
+    setEndorsingSkill(skill);
+    const wasEndorsed = endorsedByMe.includes(skill);
+
+    // Optimistic toggle
+    setEndorsedByMe((prev) => (wasEndorsed ? prev.filter((s) => s !== skill) : [...prev, skill]));
+    setEndorsements((prev) =>
+      prev.map((e) => (e.skill === skill ? { ...e, count: e.count + (wasEndorsed ? -1 : 1) } : e))
+    );
+
+    try {
+      await toggleEndorsement(id, skill);
+    } catch (error) {
+      // revert on failure
+      setEndorsedByMe((prev) => (wasEndorsed ? [...prev, skill] : prev.filter((s) => s !== skill)));
+      setEndorsements((prev) =>
+        prev.map((e) => (e.skill === skill ? { ...e, count: e.count + (wasEndorsed ? 1 : -1) } : e))
+      );
+      toast.error(error.response?.data?.message || "Failed to update endorsement");
+    } finally {
+      setEndorsingSkill(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -79,6 +123,8 @@ const PresenterDetailPage = () => {
       </div>
     );
   }
+
+  const endorsementCount = (skill) => endorsements.find((e) => e.skill === skill)?.count || 0;
 
   return (
     <div className="bg-slate-50 min-h-screen">
@@ -106,7 +152,17 @@ const PresenterDetailPage = () => {
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h1 className="text-2xl font-bold text-slate-900">{presenter.user?.name}</h1>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h1 className="text-2xl font-bold text-slate-900">{presenter.user?.name}</h1>
+                    {presenter.isVerifiedProfile && (
+                      <span
+                        className="inline-flex items-center gap-1 bg-success/10 text-success text-xs font-medium px-2.5 py-1 rounded-full"
+                        title="Verified: complete profile and verified email"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5" /> Verified Profile
+                      </span>
+                    )}
+                  </div>
                   <p className="text-slate-500 mt-1">{presenter.headline}</p>
                 </div>
                 <ShareButton title={presenter.user?.name} />
@@ -115,12 +171,12 @@ const PresenterDetailPage = () => {
                 {presenter.location?.city && (
                   <Badge variant="neutral">
                     <MapPin className="w-3 h-3" /> {presenter.location.city}
-                    {presenter.location.state ? `, ${presenter.location.state}` : ''}
+                    {presenter.location.state ? `, ${presenter.location.state}` : ""}
                   </Badge>
                 )}
                 {presenter.languages?.length > 0 && (
                   <Badge variant="neutral">
-                    <Languages className="w-3 h-3" /> {presenter.languages.join(', ')}
+                    <Languages className="w-3 h-3" /> {presenter.languages.join(", ")}
                   </Badge>
                 )}
                 {presenter.ratingsCount > 0 && (
@@ -129,6 +185,27 @@ const PresenterDetailPage = () => {
                     {presenter.ratingsCount} reviews)
                   </Badge>
                 )}
+              </div>
+
+              <div className="mt-4">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-medium text-slate-500">Profile Strength</span>
+                  <span
+                    className={`text-xs font-semibold ${
+                      presenter.profileCompletenessScore === 100 ? "text-success" : "text-primary"
+                    }`}
+                  >
+                    {presenter.profileCompletenessScore}%
+                  </span>
+                </div>
+                <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${
+                      presenter.profileCompletenessScore === 100 ? "bg-success" : "bg-primary"
+                    }`}
+                    style={{ width: `${presenter.profileCompletenessScore}%` }}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -143,14 +220,47 @@ const PresenterDetailPage = () => {
 
         {presenter.skills?.length > 0 && (
           <Card className="mt-6">
-            <h2 className="text-base font-semibold text-slate-900 mb-3">Skills</h2>
+            <h2 className="text-base font-semibold text-slate-900 mb-3">
+              Skills{" "}
+              <span className="text-xs font-normal text-slate-400">
+                (colleges & presenters can endorse)
+              </span>
+            </h2>
             <div className="flex flex-wrap gap-2">
-              {presenter.skills.map((s) => (
-                <Badge key={s} variant="primary">
-                  {s}
-                </Badge>
-              ))}
+              {presenter.skills.map((s) => {
+                const count = endorsementCount(s);
+                const isEndorsedByMe = endorsedByMe.includes(s);
+                return (
+                  <button
+                    key={s}
+                    onClick={() => handleEndorse(s)}
+                    disabled={endorsingSkill === s}
+                    className={`inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full border transition-colors disabled:opacity-50 ${
+                      isEndorsedByMe
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-white text-slate-700 border-slate-200 hover:border-primary hover:text-primary"
+                    }`}
+                  >
+                    <ThumbsUp className={`w-3.5 h-3.5 ${isEndorsedByMe ? "fill-current" : ""}`} />
+                    {s}
+                    {count > 0 && (
+                      <span
+                        className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
+                          isEndorsedByMe ? "bg-white/20" : "bg-slate-100 text-slate-500"
+                        }`}
+                      >
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
+            {!user && (
+              <p className="text-xs text-slate-400 mt-3">
+                <Link to="/login" className="text-primary underline">Log in</Link> to endorse a skill.
+              </p>
+            )}
           </Card>
         )}
 
@@ -163,9 +273,7 @@ const PresenterDetailPage = () => {
               {presenter.education.map((edu) => (
                 <div key={edu._id}>
                   <p className="text-sm font-medium text-slate-900">{edu.degree}</p>
-                  <p className="text-sm text-slate-500">
-                    {edu.institution} · {edu.yearOfCompletion}
-                  </p>
+                  <p className="text-sm text-slate-500">{edu.institution} · {edu.yearOfCompletion}</p>
                 </div>
               ))}
             </div>
@@ -183,15 +291,9 @@ const PresenterDetailPage = () => {
                   <p className="text-sm font-medium text-slate-900">{exp.title}</p>
                   <p className="text-sm text-slate-500">
                     {exp.organization} · {new Date(exp.startDate).getFullYear()}
-                    {exp.isCurrent
-                      ? ' – Present'
-                      : exp.endDate
-                        ? ` – ${new Date(exp.endDate).getFullYear()}`
-                        : ''}
+                    {exp.isCurrent ? " – Present" : exp.endDate ? ` – ${new Date(exp.endDate).getFullYear()}` : ""}
                   </p>
-                  {exp.description && (
-                    <p className="text-sm text-slate-600 mt-1">{exp.description}</p>
-                  )}
+                  {exp.description && <p className="text-sm text-slate-600 mt-1">{exp.description}</p>}
                 </div>
               ))}
             </div>
@@ -263,10 +365,8 @@ const PresenterDetailPage = () => {
 
         <div className="text-center mt-8 mb-4">
           <p className="text-sm text-slate-500">
-            Represent a college looking for a speaker?{' '}
-            <Link to="/register" className="text-primary font-medium">
-              Register to book presenters →
-            </Link>
+            Represent a college looking for a speaker?{" "}
+            <Link to="/register" className="text-primary font-medium">Register to book presenters →</Link>
           </p>
         </div>
       </div>

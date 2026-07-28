@@ -15,25 +15,42 @@ import {
   removeSlide,
 } from '../controllers/presenter.controller.js';
 import {
+  getEndorsementsForPresenter,
+  toggleEndorsement,
+} from '../controllers/endorsement.controller.js';
+import {
   profileValidator,
   availabilityValidator,
   mediaTitleValidator,
 } from '../validators/presenter.validator.js';
+import { endorsementValidator } from '../validators/endorsement.validator.js';
 import { validate } from '../middleware/validate.js';
 import { verifyAccessToken, authorizeRoles } from '../middleware/auth.js';
+import { optionalAuth } from '../middleware/optionalAuth.js';
 import {
   uploadImage,
   uploadDocument,
   uploadVideo as uploadVideoMiddleware,
   uploadSlide as uploadSlideMiddleware,
 } from '../middleware/upload.js';
-import { optionalAuth } from "../middleware/optionalAuth.js";
 
 const router = Router();
 
 // Public
 router.get('/', optionalAuth, listPresenters);
 router.get('/:id', getPresenterById);
+router.get('/:id/endorsements', optionalAuth, getEndorsementsForPresenter);
+
+// Any authenticated user (presenter OR college) can endorse — deliberately
+// placed before the presenter-only middleware below, since that would
+// otherwise block colleges from ever endorsing anyone.
+router.post(
+  '/:id/endorsements',
+  verifyAccessToken,
+  endorsementValidator,
+  validate,
+  toggleEndorsement
+);
 
 // Presenter-only, protected
 router.use(verifyAccessToken, authorizeRoles('presenter'));

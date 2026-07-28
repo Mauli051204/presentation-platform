@@ -3,6 +3,7 @@ import ApiError from '../utils/ApiError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import { uploadBufferToCloudinary, deleteFromCloudinary } from '../utils/cloudinaryUpload.js';
 import { logSearch } from '../services/search.service.js';
+import { calculatePresenterCompleteness } from '../utils/profileCompleteness.js';
 
 const checkCompleteness = (profile) => {
   profile.isProfileComplete = Boolean(
@@ -64,13 +65,23 @@ export const getMyProfile = async (req, res, next) => {
 
 export const getPresenterById = async (req, res, next) => {
   try {
-    const profile = await PresenterProfile.findById(req.params.id).populate('user', 'name role');
+    const profile = await PresenterProfile.findById(req.params.id).populate(
+      'user',
+      'name role isEmailVerified'
+    );
 
     if (!profile) {
       return next(new ApiError(404, 'Presenter not found'));
     }
 
-    return res.status(200).json(new ApiResponse(200, profile, 'Presenter profile fetched'));
+    const result = profile.toObject();
+    result.profileCompletenessScore = calculatePresenterCompleteness(profile);
+    // Public trust badge: requires both the required-fields gate (same one
+    // that unlocks applying to jobs) AND a verified email — two independent
+    // signals combined into one visible "Verified Profile" indicator.
+    result.isVerifiedProfile = Boolean(profile.isProfileComplete && profile.user?.isEmailVerified);
+
+    return res.status(200).json(new ApiResponse(200, result, 'Presenter profile fetched'));
   } catch (error) {
     next(error);
   }
