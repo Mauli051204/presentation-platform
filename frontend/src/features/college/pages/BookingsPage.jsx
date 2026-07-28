@@ -56,6 +56,7 @@ const BookingsPage = () => {
   const [newLink, setNewLink] = useState("");
   const [cancelTarget, setCancelTarget] = useState(null);
   const [cancelReason, setCancelReason] = useState("");
+  const [isCancelling, setIsCancelling] = useState(false);
   const [completeTarget, setCompleteTarget] = useState(null);
   const [isCompleting, setIsCompleting] = useState(false);
   const [busyId, setBusyId] = useState(null);
@@ -105,9 +106,6 @@ const BookingsPage = () => {
     }
   };
 
-  // Optimistic: flip the UI to "completed" immediately on confirm so the
-  // modal closes and the card updates instantly, instead of waiting on the
-  // full round trip before anything visibly changes. Reverts on error.
   const handleConfirmComplete = async () => {
     const targetId = completeTarget._id;
     const previousBookings = bookings;
@@ -126,115 +124,117 @@ const BookingsPage = () => {
     }
   };
 
+  const openCancelModal = (booking) => {
+    setCancelTarget(booking);
+    setCancelReason("");
+  };
+
+  // Optimistic: flip the booking to "cancelled" AND close the modal the
+  // instant the reason is submitted — this is what prevents the exact bug
+  // you hit, where a still-visible "Pay Now" button (on stale pre-cancel
+  // data) could be clicked before the list refreshed, causing the backend
+  // to correctly reject a payment attempt on an already-cancelled booking.
   const handleConfirmCancel = async () => {
     if (!cancelReason.trim()) {
       toast.error("Cancellation reason is required");
       return;
     }
-    setBusyId(cancelTarget._id);
+    if (isCancelling) return;
+
+    const targetId = cancelTarget._id;
+    const reason = cancelReason.trim();
+    const previousBookings = bookings;
+
+    setIsCancelling(true);
+    setBookings((prev) => prev.map((b) => (b._id === targetId ? { ...b, status: "cancelled" } : b)));
+    setCancelTarget(null);
+    setCancelReason("");
+
     try {
-      await cancelBooking(cancelTarget._id, cancelReason);
+      await cancelBooking(targetId, reason);
       toast.success("Booking cancelled");
-      setCancelTarget(null);
-      setCancelReason("");
-      await load();
     } catch (error) {
+      setBookings(previousBookings);
       toast.error(error.response?.data?.message || "Failed to cancel booking");
     } finally {
-      setBusyId(null);
+      setIsCancelling(false);
     }
   };
 
-const handlePayNow = async (booking) => {
-  setPayingId(booking._id);
-  try {
-    const scriptLoaded = await loadRazorpayScript();
-    if (!scriptLoaded) {
-      toast.error('Failed to load Razorpay checkout. Check your connection and try again.');
+  const handlePayNow = async (booking) => {
+    // Extra guard: if this card's local state has already moved on from
+    // pending_payment (e.g. cancelled optimistically a moment ago), don't
+    // even attempt the call — refresh instead of hitting a stale button.
+    if (booking.status !== "pending_payment") {
+      toast.error("This booking is no longer awaiting payment.");
+      await load();
       return;
     }
 
-    const { data: orderRes } = await createOrder(booking._id);
-    const { razorpayOrder, razorpayKeyId, payment } = orderRes.data;
-
-    // Guard: if the backend response is missing what checkout needs,
-    // fail with a specific message instead of letting the Razorpay SDK
-    // throw an opaque error deep inside new window.Razorpay(...).
-    if (!razorpayKeyId) {
-      console.error('[payment] razorpayKeyId missing from create-order response:', orderRes.data);
-      toast.error("Payment gateway isn't configured correctly (missing key). Contact support.");
-      return;
-    }
-    if (!razorpayOrder?.id && !payment?.razorpayOrderId) {
-      console.error('[payment] No order id available:', orderRes.data);
-      toast.error('Could not create a payment order. Try again in a moment.');
-      return;
-    }
-
-    const options = {
-      key: razorpayKeyId,
-      amount: razorpayOrder ? razorpayOrder.amount : Math.round(payment.amount * 100),
-      currency: razorpayOrder ? razorpayOrder.currency : 'INR',
-      name: 'Presentation Platform',
-      description: booking.requirement?.title,
-      order_id: razorpayOrder ? razorpayOrder.id : payment.razorpayOrderId,
-      handler: async (response) => {
-        try {
-          await verifyPayment({
-            razorpayOrderId: response.razorpay_order_id,
-            razorpayPaymentId: response.razorpay_payment_id,
-            razorpaySignature: response.razorpay_signature,
-          });
-          toast.success('Payment successful — booking confirmed!');
-          await load();
-        } catch (verifyError) {
-          toast.error(verifyError.response?.data?.message || 'Payment verification failed');
-        }
-      },
-      modal: {
-        ondismiss: () => {
-          toast(
-            'Payment window closed — you can try again anytime before the booking is cancelled',
-            {
-              icon: 'ℹ️',
-            }
-          );
-        },
-      },
-      theme: { color: '#2563EB' },
-    };
-
+    setPayingId(booking._id);
     try {
-      const razorpayInstance = new window.Razorpay(options);
-      razorpayInstance.open();
-    } catch (sdkError) {
-      console.error('[payment] Razorpay SDK failed to open:', sdkError);
-      toast.error(`Payment gateway error: ${sdkError.message || 'could not open checkout'}`);
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        toast.error("Failed to load Razorpay checkout. Check your connection and try again.");
+        return;
+      }
+
+      const { data: orderRes } = await createOrder(booking._id);
+      const { razorpayOrder, razorpayKeyId, payment } = orderRes.data;
+
+      if (!razorpayKeyId) {
+        toast.error("Payment gateway isn't configured correctly (missing key). Contact support.");
+        return;
+      }
+      if (!razorpayOrder?.id && !payment?.razorpayOrderId) {
+        toast.error("Could not create a payment order. Try again in a moment.");
+        return;
+      }
+
+      const options = {
+        key: razorpayKeyId,
+        amount: razorpayOrder ? razorpayOrder.amount : Math.round(payment.amount * 100),
+        currency: razorpayOrder ? razorpayOrder.currency : "INR",
+        name: "Presentation Platform",
+        description: booking.requirement?.title,
+        order_id: razorpayOrder ? razorpayOrder.id : payment.razorpayOrderId,
+        handler: async (response) => {
+          try {
+            await verifyPayment({
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+            });
+            toast.success("Payment successful — booking confirmed!");
+            await load();
+          } catch (verifyError) {
+            toast.error(verifyError.response?.data?.message || "Payment verification failed");
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            toast("Payment window closed — you can try again anytime before the booking is cancelled", {
+              icon: "ℹ️",
+            });
+          },
+        },
+        theme: { color: "#2563EB" },
+      };
+
+      new window.Razorpay(options).open();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to start payment");
+      await load();
+    } finally {
+      setPayingId(null);
     }
-  } catch (error) {
-    console.error('[payment] create-order request failed:', error);
-    if (error.response) {
-      toast.error(
-        error.response.data?.message || `Payment order failed (status ${error.response.status})`
-      );
-    } else if (error.request) {
-      toast.error('No response from server — check your network or that the backend is reachable.');
-    } else {
-      toast.error(`Failed to start payment: ${error.message}`);
-    }
-  } finally {
-    setPayingId(null);
-  }
-};
+  };
 
   const openReviewModal = (booking) => {
     setReviewTarget(booking);
     setReviewForm({ rating: 5, comment: "" });
   };
 
-  // Optimistic: hide the "Leave Review" button and close the modal the
-  // instant the user submits, rather than making them wait on the network
-  // before seeing any change.
   const handleSubmitReview = async (e) => {
     e.preventDefault();
     const targetId = reviewTarget._id;
@@ -371,7 +371,7 @@ const handlePayNow = async (booking) => {
                   )}
                   {["pending_payment", "confirmed"].includes(booking.status) && (
                     <button
-                      onClick={() => setCancelTarget(booking)}
+                      onClick={() => openCancelModal(booking)}
                       className="flex items-center gap-1.5 text-sm text-danger whitespace-nowrap"
                     >
                       <XCircle className="w-4 h-4" /> Cancel
@@ -432,16 +432,21 @@ const handlePayNow = async (booking) => {
             If already paid, this automatically refunds the payment via Razorpay.
           </p>
           <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
-            <button type="button" onClick={() => setCancelTarget(null)} className="text-sm text-slate-500 px-4 py-2.5">
+            <button
+              type="button"
+              onClick={() => setCancelTarget(null)}
+              disabled={isCancelling}
+              className="text-sm text-slate-500 px-4 py-2.5 disabled:opacity-50"
+            >
               Back
             </button>
             <button
               type="button"
               onClick={handleConfirmCancel}
-              disabled={busyId === cancelTarget?._id}
+              disabled={isCancelling}
               className="bg-danger text-white rounded-lg px-4 py-2.5 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
-              {busyId === cancelTarget?._id ? "Cancelling..." : "Confirm Cancellation"}
+              {isCancelling ? "Cancelling..." : "Confirm Cancellation"}
             </button>
           </div>
         </div>

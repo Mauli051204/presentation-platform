@@ -1,25 +1,25 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import { Search, MapPin, CalendarDays, IndianRupee, Filter, CheckCircle2 } from 'lucide-react';
-import Card from '@/components/ui/Card';
-import Badge from '@/components/ui/Badge';
-import TextInput from '@/components/ui/TextInput';
-import Select from '@/components/ui/Select';
-import Pagination from '@/components/ui/Pagination';
-import { searchRequirements } from '../api/requirementApi';
-import { applyToRequirement, getMyApplications } from '../api/applicationApi';
-import FieldAutocomplete from '@/components/ui/FieldAutocomplete';
-import RecentPopularSearches from '@/components/ui/RecentPopularSearches';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+import { Search, MapPin, CalendarDays, IndianRupee, Filter, CheckCircle2, Users2 } from "lucide-react";
+import Card from "@/components/ui/Card";
+import Badge from "@/components/ui/Badge";
+import Select from "@/components/ui/Select";
+import Pagination from "@/components/ui/Pagination";
+import FieldAutocomplete from "@/components/ui/FieldAutocomplete";
+import RecentPopularSearches from "@/components/ui/RecentPopularSearches";
+import { searchRequirements } from "../api/requirementApi";
+import { applyToRequirement, getMyApplications } from "../api/applicationApi";
+import { formatBudget } from "@/utils/formatBudget";
 
 const emptyFilters = {
-  keyword: '',
-  city: '',
-  presentationType: '',
-  sortBy: '',
+  keyword: "",
+  city: "",
+  presentationType: "",
+  sortBy: "",
 };
 
-const APPLIED_STATUSES = ['applied', 'shortlisted', 'booked'];
+const APPLIED_STATUSES = ["applied", "shortlisted", "booked", "completed"];
 
 const BrowseOpportunitiesPage = () => {
   const navigate = useNavigate();
@@ -39,16 +39,15 @@ const BrowseOpportunitiesPage = () => {
         .filter(Boolean);
       setAppliedIds(ids);
     } catch {
-      // Non-fatal — if this fails, buttons just won't reflect prior applications
-      // until the next successful load; the apply flow itself still works.
+      // Non-fatal
     }
   };
 
-  const fetchRequirements = async (page = 1) => {
+  const fetchRequirements = async (page = 1, overrideFilters = filters) => {
     setIsLoading(true);
     try {
       const params = { page, limit: 10 };
-      Object.entries(filters).forEach(([key, value]) => {
+      Object.entries(overrideFilters).forEach(([key, value]) => {
         if (value) params[key] = value;
       });
 
@@ -56,7 +55,7 @@ const BrowseOpportunitiesPage = () => {
       setRequirements(data.data);
       setPagination({ page: data.pagination.page, totalPages: data.pagination.totalPages });
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to load opportunities');
+      toast.error(error.response?.data?.message || "Failed to load opportunities");
     } finally {
       setIsLoading(false);
     }
@@ -78,25 +77,31 @@ const BrowseOpportunitiesPage = () => {
     setTimeout(() => fetchRequirements(1), 0);
   };
 
+  const handleQuickSearch = (keyword) => {
+    const next = { ...filters, keyword };
+    setFilters(next);
+    fetchRequirements(1, next);
+  };
+
   const handleApply = async (requirement) => {
     if (appliedIds.includes(requirement._id)) return;
 
     setApplyingId(requirement._id);
     try {
       await applyToRequirement({ requirementId: requirement._id });
-      toast.success('Applied successfully!');
+      toast.success("Applied successfully!");
       setAppliedIds((prev) => [...prev, requirement._id]);
     } catch (error) {
-      const message = error.response?.data?.message || 'Failed to submit application';
-      if (message.toLowerCase().includes('profile must be complete')) {
+      const message = error.response?.data?.message || "Failed to submit application";
+      if (message.toLowerCase().includes("profile must be complete")) {
         toast(
           (t) => (
             <span>
-              {message}{' '}
+              {message}{" "}
               <button
                 onClick={() => {
                   toast.dismiss(t.id);
-                  navigate('/presenter/profile');
+                  navigate("/presenter/profile");
                 }}
                 className="text-primary font-medium underline"
               >
@@ -104,9 +109,9 @@ const BrowseOpportunitiesPage = () => {
               </button>
             </span>
           ),
-          { duration: 6000, icon: '⚠️' }
+          { duration: 6000, icon: "⚠️" }
         );
-      } else if (message.toLowerCase().includes('already applied')) {
+      } else if (message.toLowerCase().includes("already applied")) {
         toast.error(message);
         setAppliedIds((prev) => [...prev, requirement._id]);
       } else {
@@ -126,43 +131,43 @@ const BrowseOpportunitiesPage = () => {
           </span>
         }
       >
-        <form
-          onSubmit={handleSearch}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-        >
-          <FieldAutocomplete
-            label="Keyword"
-            autocompleteType="requirement"
-            placeholder="e.g. AI, Career Guidance"
-            value={filters.keyword}
-            onChange={(v) => setFilters((f) => ({ ...f, keyword: v }))}
-          />
-          <FieldAutocomplete
-            label="City"
-            autocompleteType="location"
-            placeholder="e.g. Trichy"
-            value={filters.city}
-            onChange={(v) => setFilters((f) => ({ ...f, city: v }))}
-          />
-          <Select
-            label="Presentation Type"
-            value={filters.presentationType}
-            onChange={(e) => setFilters((f) => ({ ...f, presentationType: e.target.value }))}
-          >
-            <option value="">Any</option>
-            <option value="online">Online</option>
-            <option value="offline">Offline</option>
-          </Select>
-          <Select
-            label="Sort By"
-            value={filters.sortBy}
-            onChange={(e) => setFilters((f) => ({ ...f, sortBy: e.target.value }))}
-          >
-            <option value="">Event Date (soonest)</option>
-            <option value="newest">Newest Posted</option>
-            <option value="budgetHigh">Highest Budget</option>
-          </Select>
-          <div className="sm:col-span-2 lg:col-span-3 flex flex-wrap items-center gap-4 pt-1">
+        <form onSubmit={handleSearch} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <FieldAutocomplete
+              label="Keyword"
+              autocompleteType="requirement"
+              placeholder="e.g. AI, Career Guidance"
+              value={filters.keyword}
+              onChange={(v) => setFilters((f) => ({ ...f, keyword: v }))}
+            />
+            <FieldAutocomplete
+              label="City"
+              autocompleteType="location"
+              placeholder="e.g. Trichy"
+              value={filters.city}
+              onChange={(v) => setFilters((f) => ({ ...f, city: v }))}
+            />
+            <Select
+              label="Presentation Type"
+              value={filters.presentationType}
+              onChange={(e) => setFilters((f) => ({ ...f, presentationType: e.target.value }))}
+            >
+              <option value="">Any</option>
+              <option value="online">Online</option>
+              <option value="offline">Offline</option>
+            </Select>
+            <Select
+              label="Sort By"
+              value={filters.sortBy}
+              onChange={(e) => setFilters((f) => ({ ...f, sortBy: e.target.value }))}
+            >
+              <option value="">Event Date (soonest)</option>
+              <option value="newest">Newest Posted</option>
+              <option value="budgetHigh">Highest Budget</option>
+            </Select>
+          </div>
+          <RecentPopularSearches type="requirement" onSelect={handleQuickSearch} />
+          <div className="flex flex-wrap items-center gap-4">
             <button
               type="submit"
               className="flex items-center gap-2 bg-primary text-primary-foreground rounded-lg px-5 py-2.5 text-sm font-medium hover:opacity-90 transition-opacity"
@@ -207,12 +212,17 @@ const BrowseOpportunitiesPage = () => {
                         </Badge>
                       )}
                       <Badge variant="success">
-                        <IndianRupee className="w-3 h-3" /> {req.budgetMin} – {req.budgetMax}
+                        <IndianRupee className="w-3 h-3" /> {formatBudget(req.budgetMin, req.budgetMax)}
                       </Badge>
                       <Badge variant="neutral">
-                        <CalendarDays className="w-3 h-3" />{' '}
-                        {new Date(req.eventDate).toLocaleDateString()}
+                        <CalendarDays className="w-3 h-3" /> {new Date(req.eventDate).toLocaleDateString()}
                       </Badge>
+                      {req.numberOfPresentersNeeded > 0 && (
+                        <Badge variant="primary">
+                          <Users2 className="w-3 h-3" /> {req.numberOfPresentersNeeded} Presenter
+                          {req.numberOfPresentersNeeded > 1 ? "s" : ""} Needed
+                        </Badge>
+                      )}
                     </div>
                   </div>
                   <button
@@ -220,8 +230,8 @@ const BrowseOpportunitiesPage = () => {
                     disabled={applyingId === req._id || hasApplied}
                     className={`rounded-lg px-5 py-2.5 text-sm font-medium whitespace-nowrap w-full sm:w-auto transition-opacity flex items-center justify-center gap-2 ${
                       hasApplied
-                        ? 'bg-success/10 text-success cursor-not-allowed'
-                        : 'bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50'
+                        ? "bg-success/10 text-success cursor-not-allowed"
+                        : "bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
                     }`}
                   >
                     {hasApplied ? (
@@ -229,9 +239,9 @@ const BrowseOpportunitiesPage = () => {
                         <CheckCircle2 className="w-4 h-4" /> Applied
                       </>
                     ) : applyingId === req._id ? (
-                      'Applying...'
+                      "Applying..."
                     ) : (
-                      'Apply'
+                      "Apply"
                     )}
                   </button>
                 </div>
