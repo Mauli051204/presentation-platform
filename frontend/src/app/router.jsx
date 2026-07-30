@@ -14,7 +14,12 @@ import {
   Wallet,
   Star,
   Percent,
+  
 } from 'lucide-react';
+
+import BlogPage from "@/features/public/pages/BlogPage";
+import BlogDetailPage from "@/features/public/pages/BlogDetailPage";
+import BlogManagementPage from "@/features/admin/pages/BlogManagementPage";
 
 import ProtectedRoute from '@/components/common/ProtectedRoute';
 import DashboardLayout from '@/layouts/DashboardLayout';
@@ -85,6 +90,7 @@ const adminNavItems = [
   { path: '/admin/payments', label: 'Payments & Revenue', icon: Wallet },
   { path: '/admin/reviews', label: 'Reviews', icon: Star },
   { path: '/admin/settings', label: 'Commission Settings', icon: Percent },
+  { path: '/admin/blog', label: 'Blog', icon: FileText },
 ];
 
 const router = createBrowserRouter([
@@ -102,6 +108,8 @@ const router = createBrowserRouter([
       { path: '/presenters/:id', element: <PresenterDetailPage /> },
       { path: '/colleges/:id', element: <CollegeDetailPage /> },
       { path: '/opportunities/:id', element: <OpportunityDetailPage /> },
+      { path: '/blog', element: <BlogPage /> },
+      { path: '/blog/:slug', element: <BlogDetailPage /> },
     ],
   },
   { path: '/login', element: <LoginPage /> },
@@ -175,6 +183,7 @@ const router = createBrowserRouter([
           { path: '/admin/reviews', element: <ReviewsModerationPage /> },
           { path: '/admin/notifications', element: <AdminNotificationsPage /> },
           { path: '/admin/settings', element: <CommissionSettingsPage /> },
+          { path: '/admin/blog', element: <BlogManagementPage /> },
         ],
       },
     ],

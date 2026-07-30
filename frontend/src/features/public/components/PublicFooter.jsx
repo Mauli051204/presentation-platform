@@ -66,6 +66,11 @@ const PublicFooter = () => (
         <h4 className="text-white text-sm font-semibold mb-3">Company</h4>
         <ul className="space-y-2 text-sm">
           <li>
+            <Link to="/blog" className="hover:text-white transition-colors">
+              Blog
+            </Link>
+          </li>
+          <li>
             <Link to="/about" className="hover:text-white transition-colors">
               About Us
             </Link>

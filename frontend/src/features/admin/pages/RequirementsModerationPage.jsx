@@ -6,6 +6,7 @@ import FilterTabs from '@/components/ui/FilterTabs';
 import Table from '@/components/ui/Table';
 import Badge from '@/components/ui/Badge';
 import Pagination from '@/components/ui/Pagination';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 import { listAllRequirements, forceUpdateRequirementStatus } from '../api/adminApi';
 
 const statusVariant = {
@@ -29,6 +30,8 @@ const RequirementsModerationPage = () => {
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
   const [isLoading, setIsLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
+  const [forceTarget, setForceTarget] = useState(null);
+  const [isForcing, setIsForcing] = useState(false);
 
   const load = async (page = 1) => {
     setIsLoading(true);
@@ -50,21 +53,29 @@ const RequirementsModerationPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
 
-  const handleForceStatus = async (id, status) => {
-    if (
-      !window.confirm(
-        `Force this requirement to "${status}"? This overrides the college's control.`
-      )
-    )
-      return;
-    setBusyId(id);
+  const openForceModal = (requirementId, status) => {
+    setForceTarget({ requirementId, status });
+  };
+
+  // Optimistic: flip the badge instantly on confirm, close the modal right
+  // away — revert only if the server actually rejects the force-update.
+  const handleConfirmForce = async () => {
+    const { requirementId, status } = forceTarget;
+    const previous = requirements;
+
+    setIsForcing(true);
+    setBusyId(requirementId);
+    setRequirements((prev) => prev.map((r) => (r._id === requirementId ? { ...r, status } : r)));
+    setForceTarget(null);
+
     try {
-      await forceUpdateRequirementStatus(id, status);
+      await forceUpdateRequirementStatus(requirementId, status);
       toast.success(`Requirement force-updated to ${status}`);
-      await load(pagination.page);
     } catch (error) {
+      setRequirements(previous);
       toast.error(error.response?.data?.message || 'Failed to update requirement');
     } finally {
+      setIsForcing(false);
       setBusyId(null);
     }
   };
@@ -106,7 +117,7 @@ const RequirementsModerationPage = () => {
                         disabled={busyId === req._id}
                         defaultValue=""
                         onChange={(e) => {
-                          if (e.target.value) handleForceStatus(req._id, e.target.value);
+                          if (e.target.value) openForceModal(req._id, e.target.value);
                           e.target.value = '';
                         }}
                         className="text-xs border border-slate-300 rounded-md px-2 py-1"
@@ -132,6 +143,18 @@ const RequirementsModerationPage = () => {
           </>
         )}
       </Card>
+
+      <ConfirmModal
+        isOpen={!!forceTarget}
+        onClose={() => setForceTarget(null)}
+        onConfirm={handleConfirmForce}
+        title={`Force this requirement to "${forceTarget?.status || ''}"?`}
+        description="This overrides the college's control over their own requirement's status."
+        confirmLabel="Force Update"
+        isDangerous={true}
+        isLoading={isForcing}
+        icon={Settings2}
+      />
     </div>
   );
 };

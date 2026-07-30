@@ -12,6 +12,7 @@ import paymentRoutes from './payment.routes.js';
 import reviewRoutes from './review.routes.js';
 import notificationRoutes from './notification.routes.js';
 import adminRoutes from './admin.routes.js';
+import blogRoutes from './blog.routes.js';
 
 const router = Router();
 
@@ -31,8 +32,6 @@ router.use('/payments', paymentRoutes);
 router.use('/reviews', reviewRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/admin', adminRoutes);
-
-// Backend API surface is now complete — remaining phases (10+) are
-// frontend UI build-out + deployment, not new backend routes.
+router.use('/blog', blogRoutes);
 
 export default router;
